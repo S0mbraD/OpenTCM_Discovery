@@ -1,0 +1,5 @@
+# Local DAG dashboard (workflow_engine/run_server.py).
+# The MCP server does not import these.
+-r requirements.txt
+pandas>=2.0
+PyYAML>=6.0

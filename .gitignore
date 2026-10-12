@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 环境与密钥
+.env
+.env.*
+*.key
+*.pem
+
+# 构建产物
+build/
+dist/
+node_modules/
+
+# 本地运行产物
+.temp/
+.tmp/
+*.log
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 运行时状态（本地生成，不入库）
+.tcm_mcp_state/
+*.state.json
+*.checkpoint.json
+
+# 本地部署配置（含本机路径，不入库；仓库内保留 deployment_config.json 占位符模板）
+mcp_server/deployment.local.json
+workflow_engine/config.yaml
+
+# 大型导出物
+*.xlsx
+*.db
+*.sqlite
+
+# 编辑器
+.idea/
+.vscode/
+
+# 本地放置的 AutoDock Vina 官方二进制，不入库
+bin/*.exe
+bin/*.dll

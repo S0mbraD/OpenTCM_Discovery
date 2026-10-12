@@ -1,0 +1,67 @@
+# 工作流配置示例（开源通用版，疾病可配置）
+# 使用方法：复制为 config.yaml 并修改 paths + disease 段为你的实际配置
+# 换疾病/换文献库/调权重只改本文件，引擎与服务层零改动
+#
+# 换疾病三步：
+#   1. 准备三个数据文件（机制文献库/临床药表/分子库 Excel）填入 paths
+#   2. 修改 disease 段（名称/MeSH/MONDO ID/临床药 sheet 名/阳性药清单）
+#   3. python workflow_engine/run_server.py 运行，产物自动带疾病名前缀
+# 不配置 disease 段时，缺省等价于旧 UC（溃疡性结肠炎）行为
+
+workflow:
+  name: 疾病锚定靶点法小分子筛选（示例）
+  version: 1.1
+
+server:
+  port: 8765
+
+engine:
+  max_parallel: 3        # 并行步骤数上限
+
+disease:                 # ---- 疾病 profile（v2 泛化核心） ----
+  name: 溃疡性结肠炎            # 疾病名称（展示/日志/产物文件名前缀）
+  mesh_id: D003093             # MeSH ID（CTD 检索键）
+  mondo_id: MONDO_0005101      # Open Targets 检索键
+  aliases: ["ulcerative colitis", "UC"]
+  clinical_drugs_sheet: "UC Drug Set"   # 临床药表 sheet 名（随疾病更换）
+  positive_controls:                    # 阳性药（锚定集质量验证，S10）
+    - {key: "mesalazine",    cn: "美沙拉嗪"}
+    - {key: "sulfasalazine", cn: "柳氮磺吡啶"}
+    - {key: "budesonide",    cn: "布地奈德"}
+    - {key: "prednisolone",  cn: "泼尼松龙"}
+  # evidence_weights:       # 可选：覆盖本疾病的证据权重（优先级高于 scoring 段）
+  #   clinical_anchor: 1.0
+  #   E1: 0.7
+  #   E2: 0.4
+  #   E3: 0.2
+
+paths:
+  # 以下路径请替换为实际文件位置
+  mechanism_db: ""       # 文献机制数据库 Excel（含标准化主表/机制实体长表 sheet）
+  clinical_drugs: ""     # 临床药表 Excel（指南交叉背书，sheet 名见 disease.clinical_drugs_sheet）
+  drugbank_targets: ""   # DrugBank 药物-靶点表 Excel
+  molecule_library: ""   # 成分分子库 Excel（筛选版 OB/DL）
+  ctd_ixns_gz: ""        # CTD_chem_gene_ixns.tsv.gz 本地路径
+  ctd_chemicals_gz: ""   # CTD_chemicals.tsv.gz 本地路径
+
+scoring:
+  target_weight: 0.7     # 靶点覆盖分权重
+  adme_weight: 0.3       # ADME 分权重
+  ob_cutoff: 30.0        # OB 归一基准
+  dl_cutoff: 0.18        # DL 归一基准
+  evidence_weights:      # 证据分层权重（可被 disease.evidence_weights 覆盖）
+    clinical_anchor: 1.0
+    E1: 0.7
+    E2: 0.4
+    E3: 0.2
+  support_bonus: 0.08    # 靶点被 ≥2 种临床药支撑时，每档增益
+  support_cap: 0.30      # 支撑增益封顶
+  anchor_coverage_bonus: 0.5  # 临床锚定靶点覆盖率加权因子
+
+agent:
+  max_turns: 8           # Agent 单次对话最大轮数
+  temperature: 0.7       # LLM 采样温度
+  tool_call_timeout: 60  # 单次工具执行超时（秒）
+  llm_timeout: 120       # LLM 请求超时（秒）
+  llm_max_retries: 2     # LLM 请求失败重试次数
+  max_history: 40        # 对话历史持久化最大条数

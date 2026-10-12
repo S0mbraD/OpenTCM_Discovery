@@ -1,0 +1,24 @@
+open-tcm-discovery
+Copyright (c) 2026 open-tcm-discovery contributors
+
+This project is licensed under the MIT License. See LICENSE.
+
+Third-party software and data are used under their own terms. The notes below
+do not replace those licenses.
+
+AutoDock Vina
+  Copyright Scripps Research and the Vina authors.
+  Apache License 2.0.
+  https://github.com/ccsb-scripps/AutoDock-Vina
+  This repository does not vendor the executable. If you place vina.exe in
+  bin/ or redistribute a build, keep the Apache-2.0 license and notices with
+  that binary.
+
+Contributor Covenant
+  The community code of conduct is adapted from Contributor Covenant 2.1.
+  https://www.contributor-covenant.org
+
+Database records returned at runtime remain subject to the terms of PubChem,
+ChEMBL, KEGG, STRING, Open Targets, UniProt, SymMap, NCBI, ClinicalTrials.gov,
+and the other sources named in docs/SCIENTIFIC_SCOPE.md. Do not republish a
+bulk mirror of those databases from this repository.

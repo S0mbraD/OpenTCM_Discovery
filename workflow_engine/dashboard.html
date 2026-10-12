@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UC 中药筛选 · 工作流实时可视化</title>
+<style>
+:root {
+  --bg: #0b1220;
+  --bg2: #0f172a;
+  --panel: #131c31;
+  --panel2: #182238;
+  --border: #24314e;
+  --text: #dbe4f3;
+  --muted: #7c8db0;
+  --accent: #4f8cff;
+  --accent2: #22d3ee;
+  --green: #34d399;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --purple: #a78bfa;
+  --pink: #f472b6;
+  --shadow: 0 8px 32px rgba(0,0,0,.45);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(79,140,255,.14), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(34,211,238,.10), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ============ 顶栏 ============ */
+header {
+  height: 64px; flex: 0 0 64px;
+  display: flex; align-items: center; gap: 18px;
+  padding: 0 22px;
+  background: linear-gradient(180deg, rgba(19,28,49,.92), rgba(15,23,42,.75));
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  z-index: 10;
+}
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 17px; font-weight: 700; letter-spacing: .5px;
+}
+.logo .mark {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #fff;
+  box-shadow: 0 4px 18px rgba(79,140,255,.45);
+}
+.logo .sub { font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.hspace { flex: 1; }
+
+.run-meta { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--muted); }
+.run-meta b { color: var(--text); font-weight: 600; }
+
+.badge {
+  padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); background: var(--panel2);
+}
+.badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+.badge.idle    { color: #9aa8c4; } .badge.idle .dot { background: #9aa8c4; }
+.badge.running { color: var(--accent2); border-color: rgba(34,211,238,.4); }
+.badge.running .dot { background: var(--accent2); animation: blink 1.1s infinite; }
+.badge.success { color: var(--green); border-color: rgba(52,211,153,.4); }
+.badge.success .dot { background: var(--green); }
+.badge.failed  { color: var(--red); border-color: rgba(248,113,113,.4); }
+.badge.failed .dot { background: var(--red); }
+.badge.partial { color: var(--amber); border-color: rgba(251,191,36,.4); }
+.badge.partial .dot { background: var(--amber); }
+@keyframes blink { 50% { opacity: .25; } }
+
+button.primary {
+  padding: 9px 20px; border-radius: 10px; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #fff; font-family: inherit;
+  background: linear-gradient(135deg, #4f8cff, #2563eb);
+  box-shadow: 0 4px 16px rgba(37,99,235,.4);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+button.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(37,99,235,.55); }
+button.primary:active { transform: translateY(0); }
+button.primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* 进度环 */
+.progress-ring { position: relative; width: 40px; height: 40px; }
+.progress-ring svg { transform: rotate(-90deg); }
+.progress-ring .track { stroke: var(--border); }
+.progress-ring .bar { stroke: var(--accent2); transition: stroke-dashoffset .5s ease; }
+.progress-ring .num {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; color: var(--accent2);
+}
+
+/* ============ 主体布局 ============ */
+main { flex: 1; display: flex; min-height: 0; }
+
+/* 左：DAG */
+#dag-wrap {
+  flex: 1 1 58%; min-width: 0; position: relative;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+.panel-title {
+  padding: 12px 18px 8px; font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); display: flex; align-items: center; gap: 8px;
+}
+.panel-title::before { content: ""; width: 4px; height: 14px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2)); }
+#dag { flex: 1; min-height: 0; }
+
+/* 图例 */
+.legend {
+  position: absolute; left: 16px; bottom: 14px; z-index: 5;
+  display: flex; gap: 14px; font-size: 11.5px; color: var(--muted);
+  background: rgba(19,28,49,.85); border: 1px solid var(--border);
+  padding: 8px 14px; border-radius: 10px; backdrop-filter: blur(8px);
+}
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* 右侧面板 */
+#side {
+  flex: 0 0 42%; min-width: 420px; display: flex; flex-direction: column;
+  background: var(--bg2); min-height: 0;
+}
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tab {
+  flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer; transition: color .2s, background .2s;
+  border-bottom: 2px solid transparent; user-select: none;
+}
+.tab:hover { color: var(--text); background: rgba(79,140,255,.05); }
+.tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+.tab .pill {
+  display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 6px;
+  border-radius: 999px; background: var(--panel2); font-size: 10.5px;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.tab.active .pill { color: var(--accent2); border-color: rgba(34,211,238,.35); }
+
+.tab-body { flex: 1; min-height: 0; display: none; flex-direction: column; }
+.tab-body.active { display: flex; }
+
+/* 详情面板 */
+#detail-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; color: var(--muted); font-size: 13px;
+}
+#detail-empty .big { font-size: 40px; opacity: .5; }
+.detail-content { flex: 1; overflow-y: auto; padding: 18px; }
+
+.step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.step-head h2 { font-size: 16px; font-weight: 700; }
+.step-domain {
+  font-size: 11px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(79,140,255,.12); color: var(--accent); border: 1px solid rgba(79,140,255,.3);
+}
+.step-desc { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+
+.kv-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px; margin: 12px 0;
+}
+.kv {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 12px; animation: cardIn .4s ease both;
+}
+.kv .k { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.kv .v { font-size: 15px; font-weight: 700; color: var(--text); word-break: break-all; }
+.kv .v.green { color: var(--green); } .kv .v.blue { color: var(--accent2); }
+
+.error-box {
+  background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.35);
+  border-radius: 12px; padding: 12px 14px; font-size: 12px; color: #fca5a5;
+  font-family: Consolas, monospace; white-space: pre-wrap; margin-top: 10px;
+}
+
+.progressbar-wrap { margin: 10px 0 4px; }
+.progressbar {
+  height: 8px; border-radius: 999px; background: var(--border);
+  overflow: hidden; position: relative;
+}
+.progressbar > div {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width .5s ease; position: relative;
+}
+.progressbar > div::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer { from { transform: translateX(-100%);} to { transform: translateX(100%);} }
+
+/* 时间线 tab */
+#timeline-body { overflow-y: auto; padding: 14px 18px; }
+.timeline-item {
+  display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--border);
+  animation: cardIn .35s ease both;
+}
+.timeline-item .t-icon { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: 0 0 10px; }
+.timeline-item .t-main { flex: 1; min-width: 0; }
+.timeline-item .t-title { font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.timeline-item .t-title small { color: var(--muted); font-weight: 400; font-size: 11.5px; }
+.timeline-item .t-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 12px; flex-wrap: wrap; }
+.timeline-item .t-out { font-size: 11.5px; color: #9fb3d9; margin-top: 4px;
+  display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 2px 9px; font-size: 11px;
+}
+
+/* 循证 tab */
+#evidence-body { overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+.ev-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; animation: cardIn .45s ease both;
+  transition: border-color .2s;
+}
+.ev-card:hover { border-color: rgba(79,140,255,.5); }
+.ev-claim { font-size: 13.5px; font-weight: 600; line-height: 1.55; }
+.ev-step { font-size: 11px; color: var(--accent2); margin-top: 4px; }
+.ev-transform {
+  margin-top: 8px; font-size: 12px; color: #a5b8dc;
+  padding: 7px 11px; background: rgba(79,140,255,.07);
+  border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+}
+.ev-src { margin-top: 9px; display: flex; flex-direction: column; gap: 6px; }
+.ev-src .src {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 12px;
+  animation: cardIn .4s ease both;
+}
+.src .tag {
+  flex: 0 0 auto; font-size: 10px; padding: 2px 8px; border-radius: 6px;
+  font-weight: 700; letter-spacing: .5px; margin-top: 1px;
+}
+.tag.file { background: rgba(167,139,250,.15); color: var(--purple); border: 1px solid rgba(167,139,250,.4); }
+.tag.db   { background: rgba(34,211,238,.12); color: var(--accent2); border: 1px solid rgba(34,211,238,.4); }
+.tag.api  { background: rgba(244,114,182,.12); color: var(--pink); border: 1px solid rgba(244,114,182,.4); }
+.tag.computed { background: rgba(251,191,36,.12); color: var(--amber); border: 1px solid rgba(251,191,36,.4); }
+.src .s-main { flex: 1; min-width: 0; }
+.src .s-ref { font-family: Consolas, monospace; font-size: 11px; color: #8fa3c8; word-break: break-all; }
+.src .s-detail { font-size: 11.5px; color: #a5b8dc; margin-top: 2px; line-height: 1.5; }
+.src a { color: var(--accent2); text-decoration: none; font-size: 11.5px; }
+.src a:hover { text-decoration: underline; }
+
+/* 结果 tab */
+#results-body { display: none; }
+#results-body.active { display: flex; }
+.results-inner { flex: 1; overflow: auto; padding: 14px 18px; }
+table.res {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+table.res th {
+  position: sticky; top: 0; background: var(--panel2); color: var(--muted);
+  font-weight: 600; text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); white-space: nowrap; z-index: 2;
+}
+table.res td {
+  padding: 7px 10px; border-bottom: 1px solid rgba(36,49,78,.5);
+  white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+}
+table.res tr { transition: background .15s; cursor: pointer; }
+table.res tbody tr:hover { background: rgba(79,140,255,.08); }
+.rank-1 { color: #ffd166; font-weight: 800; }
+.rank-2 { color: #cbd5e1; font-weight: 700; }
+.rank-3 { color: #e8a06b; font-weight: 700; }
+.score-bar {
+  display: inline-block; height: 7px; border-radius: 4px; margin-right: 6px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  vertical-align: middle;
+}
+
+/* 结果详情弹层 */
+#compound-modal {
+  position: fixed; inset: 0; background: rgba(5,10,20,.7); z-index: 100;
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#compound-modal.show { display: flex; animation: fadeIn .25s ease; }
+.modal-box {
+  width: min(680px, 92vw); max-height: 82vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: var(--shadow); padding: 22px 24px;
+  animation: popIn .3s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes popIn { from { transform: scale(.92); opacity: 0; } }
+@keyframes fadeIn { from { opacity: 0; } }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.modal-head h3 { font-size: 17px; }
+.modal-close { cursor: pointer; color: var(--muted); font-size: 20px; line-height: 1; padding: 4px 8px; }
+.modal-close:hover { color: var(--text); }
+.target-tag {
+  display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 4px 0;
+  padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  animation: cardIn .35s ease both;
+}
+.target-tag.anchor { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.4); }
+.target-tag.mech { background: rgba(167,139,250,.12); color: var(--purple); border: 1px solid rgba(167,139,250,.4); }
+.target-tag small { font-weight: 400; opacity: .75; }
+
+/* toast */
+#toast {
+  position: fixed; top: 78px; left: 50%; transform: translateX(-50%) translateY(-12px);
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  padding: 10px 20px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 200;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ============ SVG DAG ============ */
+#dag svg { width: 100%; height: 100%; display: block; cursor: grab; }
+#dag svg.dragging { cursor: grabbing; }
+.node-group { cursor: pointer; }
+.node-box {
+  fill: var(--panel); stroke: var(--border); stroke-width: 1.5;
+  transition: all .25s ease;
+}
+.node-label { fill: var(--text); font-size: 11.5px; font-weight: 600; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; pointer-events: none; }
+.node-sub { fill: var(--muted); font-size: 10px; pointer-events: none; }
+.node-status-dot { transition: all .25s ease; }
+
+.node-group.pending .node-box { fill: #16203a; stroke: #2a3a5e; }
+.node-group.running .node-box { stroke: var(--accent2); filter: drop-shadow(0 0 10px rgba(34,211,238,.55)); }
+.node-group.success .node-box { stroke: rgba(52,211,153,.75); }
+.node-group.failed .node-box { stroke: rgba(248,113,113,.8); }
+.node-group.skipped .node-box { stroke: #3a4664; stroke-dasharray: 5 3; }
+.node-group.selected .node-box { stroke: var(--accent); stroke-width: 2.5; }
+
+.node-group.running .pulse {
+  transform-origin: center; animation: pulse 1.6s ease-out infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: .8; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.node-group.failed { animation: shake .5s ease; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); } 75% { transform: translateX(3px); }
+}
+
+.node-group.pop { animation: popNode .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes popNode { 50% { transform: scale(1.12); } }
+
+.edge-path { fill: none; stroke: var(--border); stroke-width: 1.6; transition: stroke .3s, d .45s ease; }
+.edge-path.active { stroke: rgba(34,211,238,.7); stroke-width: 2.2; }
+.edge-path.done { stroke: rgba(52,211,153,.45); }
+
+.flow-dot { fill: var(--accent2); }
+.edge-flow { stroke-dasharray: 6 90; animation: flowDash 1.5s linear infinite; stroke: var(--accent2); stroke-width: 2.4; fill: none; opacity: .9; }
+@keyframes flowDash { to { stroke-dashoffset: -96; } }
+
+.domain-label { fill: var(--muted); font-size: 10.5px; letter-spacing: 2px; opacity: .8; }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #2a3a5e; border-radius: 5px; border: 2px solid var(--bg2); }
+::-webkit-scrollbar-thumb:hover { background: #3a4f7d; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 连接状态角标 */
+#conn-badge {
+  position: absolute; top: 14px; right: 16px; z-index: 6;
+  font-size: 11px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(19,28,49,.85); padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--border);
+}
+#conn-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+#conn-badge.on .dot { background: var(--green); animation: blink 2s infinite; }
+
+.mini-btn {
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel2); color: var(--text); font-size: 12px; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+}
+.mini-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+/* ============ AI 助手 tab ============ */
+#chat-body { padding: 0; }
+.chat-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 6px; font-size: 11px; color: var(--muted);
+}
+.llm-status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 999px; font-size: 11.5px;
+  border: 1px solid var(--border); background: var(--panel2); cursor: pointer;
+  transition: all .2s; user-select: none;
+}
+.llm-status-pill:hover { transform: translateY(-1px); }
+.llm-status-pill.ok { color: var(--green); border-color: rgba(52,211,153,.4); }
+.llm-status-pill.na { color: var(--amber); border-color: rgba(251,191,36,.4); }
+
+#chat-messages {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 16px;
+  display: flex; flex-direction: column; gap: 13px;
+}
+.msg { display: flex; gap: 10px; animation: cardIn .35s ease both; }
+.msg .avatar {
+  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; margin-top: 2px;
+}
+.msg.user { flex-direction: row-reverse; }
+.msg.user .avatar { background: rgba(79,140,255,.16); border: 1px solid rgba(79,140,255,.4); }
+.msg.ai .avatar {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; box-shadow: 0 3px 12px rgba(79,140,255,.4);
+}
+.msg .bubble {
+  max-width: 80%; padding: 10px 14px; border-radius: 14px;
+  font-size: 13px; line-height: 1.65; word-break: break-word;
+}
+.msg.user .bubble {
+  background: linear-gradient(135deg, rgba(79,140,255,.22), rgba(37,99,235,.16));
+  border: 1px solid rgba(79,140,255,.4); border-top-right-radius: 4px;
+}
+.msg.ai .bubble { background: var(--panel); border: 1px solid var(--border); border-top-left-radius: 4px; }
+.msg.error .bubble {
+  background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.4);
+  color: #fca5a5; font-size: 12.5px;
+}
+.msg .bubble code {
+  background: rgba(34,211,238,.1); padding: 1px 6px; border-radius: 5px;
+  font-family: Consolas, monospace; font-size: 12px; color: var(--accent2);
+}
+.msg .bubble b { color: var(--accent2); }
+
+/* 工具调用卡片 */
+.tool-card {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 9px 13px; cursor: pointer; transition: border-color .2s;
+  animation: cardIn .35s ease both;
+}
+.tool-card:hover { border-color: rgba(79,140,255,.5); }
+.tool-card .tc-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+.tool-card .tc-icon {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; font-size: 11.5px;
+  background: rgba(167,139,250,.15); color: var(--purple); border: 1px solid rgba(167,139,250,.35);
+}
+.tool-card.online .tc-icon { background: rgba(244,114,182,.12); color: var(--pink); border-color: rgba(244,114,182,.35); }
+.tool-card .tc-brief {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted); font-weight: 400; font-size: 11px;
+}
+.tool-card .tc-status { margin-left: auto; font-size: 11px; display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.tool-card.running .tc-status { color: var(--accent2); }
+.tool-card.ok .tc-status { color: var(--green); }
+.tool-card.fail .tc-status { color: var(--red); }
+.tool-card .tc-spinner {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid rgba(34,211,238,.25); border-top-color: var(--accent2);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.tool-card .tc-detail {
+  display: none; margin-top: 8px; font-size: 11px; font-family: Consolas, monospace;
+  color: #9fb3d9; white-space: pre-wrap; word-break: break-all; max-height: 200px;
+  overflow-y: auto; border-top: 1px dashed var(--border); padding-top: 8px;
+}
+.tool-card.open .tc-detail { display: block; }
+
+/* typing 指示器 */
+.typing { display: inline-flex; gap: 4px; padding: 2px 2px; vertical-align: middle; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: tjump 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; }
+.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes tjump {
+  0%, 60%, 100% { transform: translateY(0); opacity: .4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* 快捷提问 */
+.chat-suggest { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+#chat-welcome {
+  flex: 0 0 auto; margin: 6px auto 2px; text-align: center;
+  padding: 0 8px; max-width: 100%;
+}
+.welcome-title { font-size: 13.5px; font-weight: 700; letter-spacing: .5px; }
+.welcome-desc {
+  font-size: 11.5px; color: var(--muted); line-height: 1.65; margin: 5px 0 9px;
+}
+.chat-suggest button {
+  padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--panel2); color: #a5b8dc; font-size: 11.5px; cursor: pointer;
+  font-family: inherit; transition: all .2s;
+}
+.chat-suggest button:hover { border-color: var(--accent); color: var(--accent2); transform: translateY(-1px); }
+
+/* 输入区 */
+#chat-inputbar {
+  flex: 0 0 auto; display: flex; gap: 10px; padding: 12px 14px;
+  border-top: 1px solid var(--border); background: rgba(15,23,42,.6); align-items: flex-end;
+}
+#chat-input {
+  flex: 1; resize: none; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); font-family: inherit; font-size: 13px;
+  padding: 10px 13px; line-height: 1.5; max-height: 120px; outline: none; transition: border-color .2s, box-shadow .2s;
+}
+#chat-input:focus { border-color: rgba(79,140,255,.6); box-shadow: 0 0 0 3px rgba(79,140,255,.12); }
+#chat-input::placeholder { color: #55648a; }
+#chat-send { padding: 10px 18px; flex: 0 0 auto; }
+#chat-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* ============ 节点内嵌日志卡（v2 核心） ============ */
+.node-time {
+  fill: var(--muted); font-size: 9px; font-family: Consolas, monospace;
+  pointer-events: none; letter-spacing: .3px;
+}
+.node-group.running .node-time { fill: var(--accent2); font-weight: 700; }
+.node-group.success .node-time { fill: var(--green); }
+.node-group.failed  .node-time { fill: var(--red); }
+
+.node-log-area {          /* foreignObject 内层 div */
+  height: 100%; display: flex; flex-direction: column;
+  justify-content: flex-end;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 9.5px; line-height: 1.55;
+  padding: 5px 9px 6px 13px; overflow: hidden;
+}
+.node-log-area .nll {      /* 单行日志 */
+  display: flex; gap: 5px; white-space: nowrap;
+  animation: logIn .22s ease both;
+}
+.node-log-area .nll .t { color: #3d4d70; flex: 0 0 auto; }
+.node-log-area .nll .m { color: #8fa3c8; overflow: hidden; text-overflow: ellipsis; }
+.node-log-area .nll.success .m { color: var(--green); }
+.node-log-area .nll.warn    .m { color: var(--amber); }
+.node-log-area .nll.error   .m { color: #fca5a5; }
+.node-log-area .nll.info    .m { color: #6ea8fe; }
+.node-log-area .nl-empty { color: #3d4d70; padding: 2px 0; }
+
+/* 节点进度条 */
+.node-pbar-bg {
+  fill: #1a2742; stroke: none;
+}
+.node-pbar-fill {
+  fill: var(--accent2); stroke: none; transition: width .5s ease;
+}
+.node-pct {
+  fill: #6ea8fe; font-size: 8.5px; font-weight: 700;
+  font-family: Consolas, monospace; pointer-events: none;
+}
+
+/* 分隔线（日志区上缘） */
+.node-sep { stroke: #22304e; stroke-width: 1; }
+
+/* ============ 顶部步进条 ============ */
+.stepper {
+  display: flex; gap: 4px; align-items: center;
+}
+.stepper .st-seg {
+  width: 26px; height: 7px; border-radius: 3px;
+  background: #24314e; transition: all .3s ease;
+  cursor: default; position: relative;
+}
+.stepper .st-seg.success { background: rgba(52,211,153,.75); }
+.stepper .st-seg.failed  { background: var(--red); }
+.stepper .st-seg.skipped { background: #3a4664; }
+.stepper .st-seg.running {
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  animation: segGlow 1.2s ease-in-out infinite;
+}
+@keyframes segGlow {
+  0%, 100% { box-shadow: 0 0 3px rgba(34,211,238,.5); transform: scaleY(1); }
+  50% { box-shadow: 0 0 9px rgba(34,211,238,.95); transform: scaleY(1.5); }
+}
+.stepper .st-seg::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  font-size: 10.5px; padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .18s; z-index: 50;
+  box-shadow: var(--shadow); font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.stepper .st-seg:hover::after { opacity: 1; }
+
+/* 让位动画 */
+.node-group {
+  cursor: pointer;
+  transition: transform .45s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* 节点日志区在 foreignObject 中的容器 */
+.node-fo-root { background: #0a0f1c; border-radius: 0 0 12px 12px; height: 100%; }
+
+/* 运行日志控制台（详情面板内） */
+.log-console {
+  margin-top: 10px; background: #0a0f1c; border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+.log-console-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; font-size: 11px; color: var(--muted);
+  background: rgba(19,28,49,.7); border-bottom: 1px solid var(--border);
+}
+.log-console-head .lc-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.log-console-head .lc-dot.live { background: var(--accent2); animation: blink 1.1s infinite; }
+.log-console-head .lc-clear {
+  margin-left: auto; cursor: pointer; color: var(--muted); font-size: 10.5px;
+  border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; user-select: none;
+}
+.log-console-head .lc-clear:hover { color: var(--text); border-color: var(--accent); }
+.log-lines {
+  max-height: 260px; overflow-y: auto; padding: 8px 10px;
+  font-family: Consolas, "Courier New", monospace; font-size: 11px; line-height: 1.7;
+}
+.log-line { display: flex; gap: 8px; animation: logIn .25s ease both; word-break: break-all; }
+@keyframes logIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+.log-line .lt { color: #4a5878; flex: 0 0 auto; }
+.log-line .lv { flex: 0 0 auto; font-weight: 700; }
+.log-line .lv.info { color: #6ea8fe; }
+.log-line .lv.success { color: var(--green); }
+.log-line .lv.warn { color: var(--amber); }
+.log-line .lv.error { color: var(--red); }
+.log-line .lm { color: #a5b8dc; }
+.log-line.warn .lm { color: var(--amber); }
+.log-line.error .lm { color: #fca5a5; }
+.log-empty { color: #4a5878; font-size: 11px; padding: 4px 2px; }
+
+/* 流式输出光标 */
+.stream-cursor {
+  display: inline-block; width: 7px; height: 14px; vertical-align: -2px;
+  background: var(--accent2); margin-left: 2px; border-radius: 2px;
+  animation: blink .8s infinite;
+}
+
+/* LLM 设置弹层 */
+#llm-modal {
+  position: fixed; inset: 0; background: rgba(5,10,20,.7); z-index: 120;
+  display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+#llm-modal.show { display: flex; animation: fadeIn .25s ease; }
+.llm-box {
+  width: min(560px, 92vw); max-height: 86vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: var(--shadow); padding: 22px 24px;
+  animation: popIn .3s cubic-bezier(.2,1.4,.4,1);
+}
+.llm-box h3 { font-size: 17px; }
+.llm-box .form-row { margin: 14px 0; }
+.llm-box label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.llm-box input, .llm-box select {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: inherit; font-size: 13px;
+  padding: 9px 12px; outline: none; transition: border-color .2s;
+}
+.llm-box input:focus, .llm-box select:focus { border-color: rgba(79,140,255,.6); }
+.llm-box .hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.llm-box .tools-info { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.llm-box .tools-info span {
+  font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+  background: var(--panel2); border: 1px solid var(--border); color: #9fb3d9;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="mark">♨</div>
+    <div>
+      <div id="wf-name">UC 临床锚定靶点法小分子筛选</div>
+      <div class="sub">工作流实时可视化 · 循证溯源系统</div>
+    </div>
+  </div>
+  <div class="hspace"></div>
+  <div class="stepper" id="stepper" title="工作流步进总览"></div>
+  <div class="run-meta">
+    <div class="progress-ring">
+      <svg width="40" height="40">
+        <circle class="track" cx="20" cy="20" r="16" fill="none" stroke-width="3.5"/>
+        <circle class="bar" cx="20" cy="20" r="16" fill="none" stroke-width="3.5"
+                stroke-dasharray="100.5" stroke-dashoffset="100.5"
+                stroke-linecap="round"/>
+      </svg>
+      <div class="num" id="prog-num">0%</div>
+    </div>
+    <div>
+      <div>运行 <b id="run-id">—</b></div>
+      <div>耗时 <b id="elapsed">00:00</b> · 证据 <b id="ev-count">0</b> 条</div>
+    </div>
+  </div>
+  <span class="badge idle" id="status-badge"><span class="dot"></span><span id="status-text">待启动</span></span>
+  <button class="primary" id="btn-run">▶ 启动工作流</button>
+  <button class="mini-btn" id="btn-ai" title="打开 AI 研究助手" style="border-color:rgba(79,140,255,.5);color:var(--accent2)">✦ AI 助手</button>
+  <button class="mini-btn" id="btn-fit" title="重置视图">⤢ 适应视图</button>
+</header>
+
+<main>
+  <div id="dag-wrap">
+    <div class="panel-title">工作流 DAG · 实时状态</div>
+    <div id="dag"></div>
+    <div id="conn-badge"><span class="dot"></span><span>SSE 已连接</span></div>
+    <div class="legend">
+      <span><i style="background:#5b6b8f"></i>待运行</span>
+      <span><i style="background:var(--accent2)"></i>运行中</span>
+      <span><i style="background:var(--green)"></i>成功</span>
+      <span><i style="background:var(--red)"></i>失败</span>
+      <span><i style="background:#4a5878"></i>跳过</span>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="tabs">
+      <div class="tab active" data-tab="detail">节点详情</div>
+      <div class="tab" data-tab="evidence">循证溯源 <span class="pill" id="ev-pill">0</span></div>
+      <div class="tab" data-tab="timeline">时间线</div>
+      <div class="tab" data-tab="results">筛选结果</div>
+      <div class="tab" data-tab="chat" style="color:var(--accent2)">✦ AI 助手</div>
+    </div>
+
+    <div class="tab-body active" id="detail-body">
+      <div id="detail-empty">
+        <div class="big">🔬</div>
+        <div>点击左侧 DAG 节点查看步骤详情</div>
+        <div style="font-size:11.5px;opacity:.7">含状态 / 耗时 / 输出指标 / 进度 / 错误信息</div>
+      </div>
+      <div class="detail-content" id="detail-content" style="display:none"></div>
+    </div>
+
+    <div class="tab-body" id="evidence-body">
+      <div id="ev-empty" style="color:var(--muted);font-size:13px;padding:6px 2px 2px;">
+        暂无循证记录——启动工作流后，每一步的数据来源与处理逻辑会实时追加到这里。
+      </div>
+    </div>
+
+    <div class="tab-body" id="timeline-body"></div>
+
+    <div class="tab-body" id="chat-body">
+      <div class="chat-toolbar">
+        <span class="llm-status-pill na" id="llm-status" title="点击配置 LLM">⚙ LLM 未配置 · 点击设置</span>
+        <span style="flex:1"></span>
+        <button class="mini-btn" style="padding:3px 10px;font-size:11px" id="btn-chat-reset">清空对话</button>
+      </div>
+      <div id="chat-messages">
+        <div id="chat-welcome">
+          <div class="welcome-title">✦ AI 研究助手已就绪</div>
+          <div class="welcome-desc">
+            查询本地工作流数据（Top 候选 / 靶点集 / 1,638 分子库），<br>
+            或实时检索 TCMBank · NPASS · PubChem · Open Targets · CTD 等数据库
+          </div>
+          <div class="chat-suggest"></div>
+        </div>
+      </div>
+      <div id="chat-inputbar">
+        <textarea id="chat-input" rows="1" placeholder="向 AI 提问 · Enter 发送 / Shift+Enter 换行"></textarea>
+        <button class="primary" id="chat-send">发送</button>
+      </div>
+    </div>
+
+    <div class="tab-body" id="results-body">
+      <div class="results-inner">
+        <div style="color:var(--muted);font-size:13px;padding:6px 2px 10px;">
+          评分完成后自动加载 Top 30 候选小分子；点击行查看该成分的靶点循证链。
+        </div>
+        <table class="res" id="res-table">
+          <thead><tr id="res-head"></tr></thead>
+          <tbody id="res-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="compound-modal">
+  <div class="modal-box" id="modal-content"></div>
+</div>
+<div id="llm-modal">
+  <div class="llm-box">
+    <div class="modal-head">
+      <h3>⚙ LLM 模型配置</h3>
+      <span class="modal-close" onclick="document.getElementById('llm-modal').classList.remove('show')">✕</span>
+    </div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;margin-top:4px">
+      选择服务商并填入 API Key，AI 助手即可调用全部研究工具。配置仅保存在本地 llm_providers.json，密钥不会上传。
+    </div>
+    <div class="form-row">
+      <label>服务商</label>
+      <select id="llm-provider"></select>
+    </div>
+    <div class="form-row">
+      <label>接口地址 base_url</label>
+      <input id="llm-baseurl" placeholder="https://.../v1">
+      <div class="hint" id="llm-keyhint"></div>
+    </div>
+    <div class="form-row">
+      <label>API Key</label>
+      <input id="llm-key" type="password" placeholder="sk-...">
+    </div>
+    <div class="form-row">
+      <label>模型 model</label>
+      <input id="llm-model" list="llm-model-list" placeholder="如 qwen-plus / moonshot-v1-8k">
+      <datalist id="llm-model-list"></datalist>
+    </div>
+    <div class="form-row">
+      <button class="primary" id="llm-save" style="width:100%">保存配置</button>
+    </div>
+    <div class="panel-title" style="padding:12px 0 2px">AI 可用工具</div>
+    <div class="tools-info" id="llm-tools"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ================= 状态管理 ================= */
+let STATE = { steps: {}, status: "idle", run_id: "", started_at: null, ended_at: null };
+let STEP_META = [];         // [{name, domain, desc, deps}]
+let selectedStep = null;
+let evtSource = null;
+let startTime = null;
+let elapsedTimer = null;
+
+const $ = id => document.getElementById(id);
+const fmt = ms => {
+  if (ms == null) return "—";
+  if (ms < 1000) return ms + " ms";
+  if (ms < 60000) return (ms / 1000).toFixed(1) + " s";
+  return Math.floor(ms / 60000) + "m " + Math.round(ms % 60000 / 1000) + "s";
+};
+const toast = msg => {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2600);
+};
+
+/* ================= DAG 渲染 ================= */
+const NS = "http://www.w3.org/2000/svg";
+let dagLayout = null;     // {nodes: {name: {x,y,w,h}}, edges: [{from,to}], order}
+let viewTransform = { x: 0, y: 0, k: 1 };
+
+function computeLayout(metas) {
+  // 分层：layer = 最长依赖路径
+  const byName = {}; metas.forEach(m => byName[m.name] = m);
+  const layer = {};
+  function getLayer(n) {
+    if (layer[n] != null) return layer[n];
+    const deps = byName[n] ? byName[n].deps : [];
+    layer[n] = deps.length ? Math.max(...deps.map(getLayer)) + 1 : 0;
+    return layer[n];
+  }
+  metas.forEach(m => getLayer(m.name));
+  const layers = {};
+  metas.forEach(m => { (layers[layer[m.name]] = layers[layer[m.name]] || []).push(m); });
+
+  const W = 210, H = nodeH("", null), GAPX = 90, GAPY = 26;
+  const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+  const maxCol = Math.max(...layerKeys.map(k => layers[k].length));
+  const width = layerKeys.length * (W + GAPX);
+  const height = maxCol * (H + GAPY);
+
+  const nodes = {};
+  layerKeys.forEach(k => {
+    const items = layers[k];
+    const totalH = items.length * H + (items.length - 1) * GAPY;
+    items.forEach((m, i) => {
+      nodes[m.name] = {
+        x: k * (W + GAPX) + 20,
+        y: (height - totalH) / 2 + i * (H + GAPY),
+        w: W, h: H, layer: k, meta: m
+      };
+    });
+  });
+  const edges = [];
+  metas.forEach(m => m.deps.forEach(d => edges.push({ from: d, to: m.name })));
+  return { nodes, edges, width: width + 60, height: height + 60, W, GAPY, layers };
+}
+
+/* v2：节点高度按状态动态变化（运行中/失败展开内嵌日志区） */
+const NODE_H_BASE = 54, NODE_H_LOG = 58, NODE_H_WIDE = 112;
+function nodeH(name, st) {
+  const status = st ? (st.status || "pending") : ((STATE.steps[name] || {}).status || "pending");
+  if (status === "running") return NODE_H_WIDE;           // 顶部状态区 + 内嵌日志
+  if (status === "failed") return NODE_H_WIDE;            // 失败也常驻展开（排错第一入口）
+  return NODE_H_BASE;
+}
+
+/* v2：层内重排——某节点高度变化后，重新计算同层所有节点 y 坐标（带让位动画） */
+function relayoutLayer(layerKey) {
+  const layerNames = (dagLayout.layers[layerKey] || []).map(m => m.name);
+  if (!layerNames.length) return;
+  const GAPY = dagLayout.GAPY;
+  let y = null;
+  layerNames.forEach(nm => {
+    const n = dagLayout.nodes[nm];
+    const h = nodeH(nm, null);
+    if (y === null) y = n.y;                     // 以该层首个节点顶部为锚
+    if (n.y !== y || n.h !== h) {
+      n.y = y; n.h = h;
+      const g = document.querySelector(`.node-group[data-name="${nm}"]`);
+      if (g) {
+        g.style.transform = `translate(${n.x}px, ${n.y}px)`;
+        const box = g.querySelector(".node-box");
+        if (box) box.setAttribute("height", h);
+        const bar = g.querySelector(".node-status-bar");
+        if (bar) bar.setAttribute("height", h - 16);
+        const pulse = g.querySelector(".pulse");
+        if (pulse) pulse.setAttribute("height", h + 8);
+      }
+    }
+    y += h + GAPY;
+  });
+  updateEdges();
+}
+
+function renderDAG() {
+  const wrap = $("dag");
+  wrap.innerHTML = "";
+  if (!dagLayout) return;
+
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${dagLayout.width} ${dagLayout.height}`);
+  svg.id = "dag-svg";
+
+  const root = document.createElementNS(NS, "g");
+  root.id = "dag-root";
+  svg.appendChild(root);
+  wrap.appendChild(svg);
+
+  // 领域标签（按列）
+  const layerDomains = {};
+  Object.values(dagLayout.nodes).forEach(n => {
+    layerDomains[n.layer] = layerDomains[n.layer] || new Set();
+    layerDomains[n.layer].add(n.meta.domain);
+  });
+
+  const defs = document.createElementNS(NS, "defs");
+  svg.appendChild(defs);
+
+  // 边
+  dagLayout.edges.forEach(e => {
+    const a = dagLayout.nodes[e.from], b = dagLayout.nodes[e.to];
+    if (!a || !b) return;
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+    const mx = (x1 + x2) / 2;
+    const p = document.createElementNS(NS, "path");
+    const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    p.setAttribute("d", d);
+    p.setAttribute("class", "edge-path");
+    p.dataset.from = e.from; p.dataset.to = e.to;
+    root.appendChild(p);
+  });
+
+  // 节点
+  Object.entries(dagLayout.nodes).forEach(([name, n]) => {
+    buildNode(root, name, n, false);
+  });
+
+  relayoutAll();
+
+  // 平移缩放
+  let dragging = false, lastX = 0, lastY = 0, moved = false;
+  svg.addEventListener("mousedown", e => { dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY; svg.classList.add("dragging"); });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    viewTransform.x += dx; viewTransform.y += dy;
+    lastX = e.clientX; lastY = e.clientY;
+    applyTransform();
+  });
+  window.addEventListener("mouseup", () => { dragging = false; svg.classList.remove("dragging"); });
+  svg.addEventListener("wheel", e => {
+    e.preventDefault();
+    const k = e.deltaY < 0 ? 1.12 : 0.89;
+    viewTransform.k = Math.min(2.6, Math.max(0.45, viewTransform.k * k));
+    applyTransform();
+  }, { passive: false });
+
+  function applyTransform() {
+    root.setAttribute("transform",
+      `translate(${viewTransform.x},${viewTransform.y}) scale(${viewTransform.k})`);
+  }
+  applyTransform();
+  updateEdges();
+}
+
+/* v2：全层重排（初始渲染时用） */
+function relayoutAll() {
+  if (!dagLayout || !dagLayout.layers) return;
+  Object.keys(dagLayout.layers).map(Number).sort((a, b) => a - b)
+    .forEach(k => relayoutLayer(k));
+}
+
+function updateEdges() {
+  document.querySelectorAll(".edge-path").forEach(p => {
+    const from = p.dataset.from, to = p.dataset.to;
+    const fs = (STATE.steps[from] || {}).status;
+    const ts = (STATE.steps[to] || {}).status;
+    p.classList.remove("active", "done");
+    if (fs === "success") p.classList.add("done");
+    if (fs === "success" && ts === "running") p.classList.add("active");
+    // 流动光效
+    let flow = p.nextElementSibling;
+    if (fs === "success" && ts === "running") {
+      if (!flow || !flow.classList.contains("edge-flow")) {
+        const f = document.createElementNS(NS, "path");
+        f.setAttribute("d", p.getAttribute("d"));
+        f.setAttribute("class", "edge-flow");
+        p.after(f);
+      }
+    } else if (flow && flow.classList.contains("edge-flow")) {
+      flow.remove();
+    }
+  });
+}
+
+/* v2：公共节点构建（renderDAG / refreshNode 共用）——含内嵌日志区 */
+const XNS = "http://www.w3.org/1999/xhtml";
+const STEP_COLOR = { pending: "#5b6b8f", running: "#22d3ee", success: "#34d399", failed: "#f87171", skipped: "#4a5878" };
+
+function buildNode(root, name, n, keepSelected) {
+  const st = STATE.steps[name] || {};
+  const status = st.status || "pending";
+  const h = n.h;
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", `node-group ${status}${keepSelected ? " selected" : ""}`);
+  g.dataset.name = name;
+  g.style.transform = `translate(${n.x}px, ${n.y}px)`;
+
+  // 脉冲圈（运行中）
+  if (status === "running") {
+    const pulse = document.createElementNS(NS, "rect");
+    pulse.setAttribute("class", "pulse");
+    pulse.setAttribute("x", -4); pulse.setAttribute("y", -4);
+    pulse.setAttribute("width", n.w + 8); pulse.setAttribute("height", h + 8);
+    pulse.setAttribute("rx", 16);
+    pulse.setAttribute("fill", "none");
+    pulse.setAttribute("stroke", "rgba(34,211,238,.4)");
+    pulse.setAttribute("stroke-width", "2");
+    g.appendChild(pulse);
+  }
+
+  // 主框
+  const box = document.createElementNS(NS, "rect");
+  box.setAttribute("class", "node-box");
+  box.setAttribute("width", n.w); box.setAttribute("height", h);
+  box.setAttribute("rx", 13);
+  g.appendChild(box);
+
+  // 状态色条（左侧）
+  const bar = document.createElementNS(NS, "rect");
+  bar.setAttribute("class", "node-status-bar");
+  bar.setAttribute("width", 4.5); bar.setAttribute("height", h - 16);
+  bar.setAttribute("x", 0); bar.setAttribute("y", 8);
+  bar.setAttribute("rx", 2.5);
+  bar.setAttribute("fill", STEP_COLOR[status]);
+  g.appendChild(bar);
+
+  // 状态点
+  const dot = document.createElementNS(NS, "circle");
+  dot.setAttribute("class", "node-status-dot");
+  dot.setAttribute("cx", n.w - 16); dot.setAttribute("cy", 18); dot.setAttribute("r", 4.5);
+  dot.setAttribute("fill", STEP_COLOR[status]);
+  g.appendChild(dot);
+
+  // 实时计时器（右上角，运行中每秒跳动，结束后定格耗时）
+  if (status !== "pending") {
+    const time = document.createElementNS(NS, "text");
+    time.setAttribute("class", "node-time");
+    time.setAttribute("x", n.w - 30); time.setAttribute("y", 22);
+    time.setAttribute("text-anchor", "end");
+    time.textContent = status === "running" ? "00:00" : fmtDur(st.duration_ms);
+    g.appendChild(time);
+  }
+
+  // 名称
+  const label = document.createElementNS(NS, "text");
+  label.setAttribute("class", "node-label");
+  label.setAttribute("x", 16); label.setAttribute("y", 24);
+  const shortName = name.replace(/^s\d+_/, "").replace(/_/g, " ");
+  label.textContent = shortName.length > 24 ? shortName.slice(0, 23) + "…" : shortName;
+  g.appendChild(label);
+
+  // 副标题
+  const sub = document.createElementNS(NS, "text");
+  sub.setAttribute("class", "node-sub");
+  sub.setAttribute("x", 16); sub.setAttribute("y", 41);
+  let subText = n.meta.domain;
+  if (status === "running") {
+    subText = st.progress_msg ? String(st.progress_msg).slice(0, 26) : "运行中…";
+    sub.setAttribute("fill", "#22d3ee");
+  } else if (status === "success") {
+    const outs = Object.entries(st.outputs || {}).slice(0, 1);
+    subText = outs.length ? `${outs[0][0]}: ${outs[0][1]}`.slice(0, 30) : "完成";
+    sub.setAttribute("fill", "#34d399");
+  } else if (status === "failed") {
+    subText = "✘ " + String(st.error || "").split("\n")[0].slice(0, 24);
+    sub.setAttribute("fill", "#f87171");
+  }
+  sub.textContent = subText;
+  g.appendChild(sub);
+
+  // 运行中：进度条 + 百分比
+  if (status === "running") {
+    const pbW = n.w - 56;
+    const bg = document.createElementNS(NS, "rect");
+    bg.setAttribute("class", "node-pbar-bg");
+    bg.setAttribute("x", 16); bg.setAttribute("y", 45.5);
+    bg.setAttribute("width", pbW); bg.setAttribute("height", 4.5); bg.setAttribute("rx", 2.25);
+    g.appendChild(bg);
+    const fill = document.createElementNS(NS, "rect");
+    fill.setAttribute("class", "node-pbar-fill");
+    fill.setAttribute("x", 16); fill.setAttribute("y", 45.5);
+    fill.setAttribute("width", pbW * (st.progress || 0)); fill.setAttribute("height", 4.5); fill.setAttribute("rx", 2.25);
+    g.appendChild(fill);
+    const pct = document.createElementNS(NS, "text");
+    pct.setAttribute("class", "node-pct");
+    pct.setAttribute("x", n.w - 14); pct.setAttribute("y", 51.5);
+    pct.setAttribute("text-anchor", "end");
+    pct.textContent = Math.round((st.progress || 0) * 100) + "%";
+    g.appendChild(pct);
+  }
+
+  // 运行中 / 失败：分隔线 + 内嵌实时日志区（v2 核心）
+  if (status === "running" || status === "failed") {
+    const sep = document.createElementNS(NS, "line");
+    sep.setAttribute("class", "node-sep");
+    sep.setAttribute("x1", 2); sep.setAttribute("y1", 54);
+    sep.setAttribute("x2", n.w - 2); sep.setAttribute("y2", 54);
+    g.appendChild(sep);
+
+    const fo = document.createElementNS(NS, "foreignObject");
+    fo.setAttribute("x", 2); fo.setAttribute("y", 55);
+    fo.setAttribute("width", n.w - 4); fo.setAttribute("height", h - 57);
+    const foRoot = document.createElementNS(XNS, "div");
+    foRoot.setAttribute("class", "node-fo-root");
+    const area = document.createElementNS(XNS, "div");
+    area.setAttribute("class", "node-log-area");
+    area.id = "nl-" + name;
+    foRoot.appendChild(area);
+    fo.appendChild(foRoot);
+    g.appendChild(fo);
+    renderNodeLogArea(name);
+    // 页面重连/刷新后本地无日志缓存时，异步拉历史填充
+    if (!(stepLogStore[name] || []).length) loadNodeLogHistory(name);
+  }
+
+  g.addEventListener("click", ev => { ev.stopPropagation(); selectStep(name); });
+  root.appendChild(g);
+  return g;
+}
+
+/* v2：内嵌日志区——从 stepLogStore 渲染最近几行 */
+function renderNodeLogArea(name) {
+  const area = document.getElementById("nl-" + name);
+  if (!area) return;
+  area.innerHTML = "";
+  const logs = (stepLogStore[name] || []).slice(-4);
+  if (!logs.length) {
+    const e = document.createElementNS(XNS, "div");
+    e.setAttribute("class", "nl-empty");
+    e.textContent = "awaiting output…";
+    area.appendChild(e);
+    return;
+  }
+  logs.forEach(l => appendNodeLogLine(name, l, true));
+}
+
+/* v2：向内嵌日志区追加单行（局部 DOM 更新，不重建节点） */
+function appendNodeLogLine(name, entry, noAnim) {
+  const area = document.getElementById("nl-" + name);
+  if (!area) return;
+  const empty = area.querySelector(".nl-empty");
+  if (empty) empty.remove();
+  const line = document.createElementNS(XNS, "div");
+  line.setAttribute("class", "nll " + (entry.level || "info") + (noAnim ? " noanim" : ""));
+  const t = document.createElementNS(XNS, "span");
+  t.setAttribute("class", "t");
+  t.textContent = (entry.ts || "").slice(11, 19);
+  const m = document.createElementNS(XNS, "span");
+  m.setAttribute("class", "m");
+  m.textContent = entry.message || "";
+  line.appendChild(t); line.appendChild(m);
+  area.appendChild(line);
+  while (area.children.length > 4) area.removeChild(area.firstChild);
+}
+
+/* v2：页面重连后拉取步骤历史日志，填充节点内嵌区 */
+async function loadNodeLogHistory(name) {
+  try {
+    const r = await fetch(`/api/step_logs?step=${encodeURIComponent(name)}&limit=8`);
+    const d = await r.json();
+    if (d.ok && d.logs && d.logs.length && (stepLogStore[name] || []).length === 0) {
+      stepLogStore[name] = d.logs.slice();
+      renderNodeLogArea(name);
+      if (selectedStep === name) renderLogConsole(name);
+    }
+  } catch (e) {}
+}
+
+/* v2：紧凑耗时格式 */
+const fmtDur = ms => {
+  if (ms == null) return "";
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + "s";
+  return Math.floor(s / 60) + "m" + String(s % 60).padStart(2, "0") + "s";
+};
+const mmss = ms => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+};
+const localNowISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString().slice(0, 19);
+
+/* v2：运行中节点计时器——每秒更新 */
+setInterval(() => {
+  document.querySelectorAll(".node-group.running").forEach(g => {
+    const st = STATE.steps[g.dataset.name];
+    if (!st) return;
+    let ms = null;
+    if (st._t0) ms = Date.now() - st._t0;
+    else if (st.started_at) {
+      const t = new Date(st.started_at).getTime();
+      if (!isNaN(t)) ms = Date.now() - t;
+    }
+    const el = g.querySelector(".node-time");
+    if (el && ms != null) el.textContent = mmss(ms);
+  });
+}, 1000);
+
+function refreshNode(name) {
+  const n = dagLayout.nodes[name];
+  if (!n) return;
+  n.h = nodeH(name, null);                      // 先更新目标高度
+  relayoutLayer(n.layer);                       // 层内重排（同层让位动画）
+  const old = document.querySelector(`.node-group[data-name="${name}"]`);
+  if (!old) return;
+  const wasSelected = old.classList.contains("selected");
+  const g = buildNode(old.parentNode, name, n, wasSelected);
+  old.replaceWith(g);                           // 原位替换，保持 DOM 顺序
+  updateEdges();
+}
+
+/* ================= 详情面板 ================= */
+const stepLogStore = {};   // step -> [log entries]（含实时 step_log 事件）
+
+function pushStepLogLocal(step, entry) {
+  (stepLogStore[step] = stepLogStore[step] || []).push(entry);
+  if (stepLogStore[step].length > 300) stepLogStore[step].shift();
+}
+
+function renderLogConsole(name) {
+  const logs = stepLogStore[name] || [];
+  const box = document.getElementById("log-lines-" + name);
+  if (!box) return;
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  if (!logs.length) {
+    box.innerHTML = `<div class="log-empty">暂无日志——该步骤运行时的实时输出将显示在这里</div>`;
+    return;
+  }
+  box.innerHTML = logs.map(l => {
+    const t = (l.ts || "").slice(11, 19);
+    return `<div class="log-line ${l.level || "info"}">
+      <span class="lt">${t}</span>
+      <span class="lv ${l.level || "info"}">${l.level === "success" ? "✓" : l.level === "error" ? "✘" : l.level === "warn" ? "⚠" : "›"}</span>
+      <span class="lm">${escapeHtml(l.message)}</span>
+    </div>`;
+  }).join("");
+  if (nearBottom) box.scrollTop = box.scrollHeight;
+}
+
+function selectStep(name) {
+  selectedStep = name;
+  document.querySelectorAll(".node-group").forEach(g =>
+    g.classList.toggle("selected", g.dataset.name === name));
+  renderDetail(name);
+  loadStepLogsHistory(name);
+}
+
+function renderDetail(name) {
+  const st = STATE.steps[name];
+  const meta = STEP_META.find(m => m.name === name);
+  if (!st || !meta) return;
+  $("detail-empty").style.display = "none";
+  const c = $("detail-content");
+  c.style.display = "block";
+
+  const statusMap = { pending: ["待运行", "#9aa8c4"], running: ["运行中", "var(--accent2)"],
+    success: ["成功", "var(--green)"], failed: ["失败", "var(--red)"], skipped: ["已跳", "#9aa8c4"] };
+  const [stText, stColor] = statusMap[st.status] || ["未知", "#999"];
+
+  let html = `
+    <div class="step-head">
+      <h2>${name.replace(/^s\d+_/, "S" + (name.match(/^s(\d+)_/)?.[1] || "?") + " · ")}</h2>
+      <span class="step-domain">${meta.domain}</span>
+      <span class="badge" style="color:${stColor};border-color:${stColor}44">
+        <span class="dot" style="background:${stColor}"></span>${stText}</span>
+    </div>
+    <div class="step-desc">${meta.desc}</div>
+    <div class="progressbar-wrap">
+      <div class="progressbar"><div style="width:${(st.status === "success" ? 1 : st.progress || 0) * 100}%"></div></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;justify-content:space-between">
+        <span>${st.progress_msg || ""}</span>
+        <span>${st.status === "success" ? "100%" : Math.round((st.progress || 0) * 100) + "%"}</span>
+      </div>
+    </div>
+    <div class="kv-grid">
+      <div class="kv"><div class="k">开始时间</div><div class="v" style="font-size:13px">${st.started_at || "—"}</div></div>
+      <div class="kv"><div class="k">耗时</div><div class="v blue">${fmt(st.duration_ms)}</div></div>
+      <div class="kv"><div class="k">产物文件</div><div class="v">${(st.artifacts || []).length}</div></div>
+    </div>`;
+
+  const outs = Object.entries(st.outputs || {});
+  if (outs.length) {
+    html += `<div class="panel-title" style="padding:8px 0 6px">输出指标</div><div class="kv-grid">`;
+    outs.forEach(([k, v]) => {
+      html += `<div class="kv"><div class="k">${k}</div>
+        <div class="v ${typeof v === "number" ? "blue" : ""}" style="font-size:13.5px">${v}</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 实时状态卡：运行中步骤的 progress_detail 键值对（服务端 ctx.report_progress(detail=...) 推送）
+  const pd = st.progress_detail || {};
+  const pdEntries = Object.entries(pd);
+  if (pdEntries.length) {
+    html += `<div class="panel-title" style="padding:8px 0 6px">
+      实时状态${st.status === "running" ? ' <span style="color:var(--accent2)">◉ LIVE</span>' : ""}</div>
+      <div class="kv-grid">`;
+    pdEntries.forEach(([k, v]) => {
+      html += `<div class="kv"><div class="k">${escapeHtml(String(k))}</div>
+        <div class="v blue" style="font-size:13px">${escapeHtml(String(v))}</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 运行日志控制台（历史 + 实时追加）
+  html += `
+    <div class="log-console" style="margin-top:14px">
+      <div class="log-console-head">
+        <span class="lc-dot ${st.status === "running" ? "live" : ""}"></span>
+        <span>运行日志</span><span style="opacity:.6">· ${name}</span>
+        <span class="lc-clear" onclick="clearStepLog('${name}')">清空</span>
+      </div>
+      <div class="log-lines" id="log-lines-${name}"></div>
+    </div>`;
+
+  if (st.artifacts && st.artifacts.length) {
+    html += `<div class="panel-title" style="padding:8px 0 6px">产物文件</div>`;
+    st.artifacts.forEach(a => {
+      const nm = a.split(/[\\/]/).pop();
+      html += `<div style="margin:6px 0"><a href="/download?path=${encodeURIComponent(a)}"
+        style="color:var(--accent2);font-size:12.5px;text-decoration:none" download>⬇ ${nm}</a></div>`;
+    });
+  }
+  if (st.error) html += `<div class="error-box">${st.error}</div>`;
+  c.innerHTML = html;
+  renderLogConsole(name);
+}
+
+function clearStepLog(name) {
+  stepLogStore[name] = [];
+  renderLogConsole(name);
+}
+
+async function loadStepLogsHistory(name) {
+  // SSE 事件只覆盖实时增量；选中节点时从 /api/step_logs 拉取本轮已产生的日志
+  if (stepLogStore[name] && stepLogStore[name].length) return;
+  try {
+    const r = await fetch(`/api/step_logs?step=${encodeURIComponent(name)}&limit=300`);
+    const d = await r.json();
+    if (d.ok && d.logs && d.logs.length) {
+      stepLogStore[name] = d.logs.slice();
+      renderLogConsole(name);
+    }
+  } catch (e) {}
+}
+
+/* ================= 循证面板 ================= */
+function addEvidenceCards(items) {
+  const body = $("evidence-body");
+  const empty = $("ev-empty");
+  if (empty) empty.remove();
+  items.forEach(ev => {
+    const card = document.createElement("div");
+    card.className = "ev-card";
+    const srcs = (ev.sources || []).map(s => `
+      <div class="src">
+        <span class="tag ${s.kind}">${s.kind.toUpperCase()}</span>
+        <div class="s-main">
+          <div class="s-ref">${s.ref}</div>
+          ${s.detail ? `<div class="s-detail">${s.detail}</div>` : ""}
+          ${s.url ? `<a href="${s.url}" target="_blank">🔗 核对链接</a>` : ""}
+        </div>
+      </div>`).join("");
+    card.innerHTML = `
+      <div class="ev-claim">${ev.claim}</div>
+      <div class="ev-step">◈ ${ev.step} · ${ev.ts || ""}</div>
+      ${ev.transform ? `<div class="ev-transform">${ev.transform}</div>` : ""}
+      ${srcs ? `<div class="ev-src">${srcs}</div>` : ""}`;
+    body.prepend(card);
+    $("ev-pill").textContent = (+$("ev-pill").textContent || 0) + 1;
+  });
+}
+
+/* ================= 时间线 ================= */
+function renderTimeline() {
+  const body = $("timeline-body");
+  const items = Object.values(STATE.steps)
+    .filter(s => s.started_at)
+    .sort((a, b) => (a.started_at || "").localeCompare(b.started_at || ""));
+  if (!items.length) {
+    body.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:8px 2px">启动后显示每步执行时间线。</div>`;
+    return;
+  }
+  body.innerHTML = items.map(s => {
+    const colorMap = { running: "var(--accent2)", success: "var(--green)", failed: "var(--red)", skipped: "#4a5878" };
+    const outs = Object.entries(s.outputs || {}).slice(0, 4)
+      .map(([k, v]) => `<span class="chip">${k}: ${v}</span>`).join("");
+    return `
+    <div class="timeline-item">
+      <div class="t-icon" style="background:${colorMap[s.status] || "#5b6b8f"}"></div>
+      <div class="t-main">
+        <div class="t-title">${s.name.replace(/^s\d+_/, "")} <small>${s.domain}</small></div>
+        <div class="t-meta">
+          <span>开始 ${s.started_at || "—"}</span>
+          <span>耗时 ${fmt(s.duration_ms)}</span>
+          ${s.artifacts && s.artifacts.length ? `<span>产物 ${s.artifacts.length} 个</span>` : ""}
+        </div>
+        <div class="t-out">${outs}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ================= 顶栏状态 ================= */
+function updateHeader() {
+  const steps = Object.values(STATE.steps || {});
+  const done = steps.filter(s => ["success", "failed", "skipped"].includes(s.status)).length;
+  const pct = steps.length ? Math.round(done / steps.length * 100) : 0;
+  $("prog-num").textContent = pct + "%";
+  const bar = document.querySelector(".progress-ring .bar");
+  bar.style.strokeDashoffset = 100.5 * (1 - pct / 100);
+
+  const badge = $("status-badge");
+  const stMap = { idle: "待启动", running: "运行中", success: "全部成功", failed: "失败", partial: "部分完成" };
+  badge.className = "badge " + (STATE.status || "idle");
+  $("status-text").textContent = stMap[STATE.status] || STATE.status;
+  $("run-id").textContent = STATE.run_id || "—";
+
+  const runningBtn = $("btn-run");
+  runningBtn.disabled = STATE.status === "running";
+  runningBtn.textContent = STATE.status === "running" ? "⏳ 运行中…" : "▶ 启动工作流";
+
+  if (STATE.status === "running" && startTime == null && STATE.started_at) {
+    startTime = new Date(STATE.started_at);
+    if (!elapsedTimer) elapsedTimer = setInterval(updateElapsed, 1000);
+  }
+  if (["success", "failed", "partial"].includes(STATE.status)) {
+    if (STATE.started_at && STATE.ended_at) {
+      const ms = new Date(STATE.ended_at) - new Date(STATE.started_at);
+      $("elapsed").textContent = fmt(ms);
+    }
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+  }
+}
+
+/* v2：顶部步进条（11 段，颜色即状态，hover 显示步骤名+耗时） */
+function updateStepper() {
+  const box = $("stepper");
+  if (!box) return;
+  if (!STEP_META.length) { box.innerHTML = ""; return; }
+  if (!box.children.length) {
+    box.innerHTML = STEP_META.map(m =>
+      `<div class="st-seg" data-step="${m.name}" data-tip="${m.name.replace(/^s(\d+)_/, "S$1 ").replace(/_/g, " ")}"></div>`).join("");
+  }
+  box.querySelectorAll(".st-seg").forEach(seg => {
+    const st = (STATE.steps[seg.dataset.step] || {}).status || "pending";
+    seg.className = "st-seg " + (st === "pending" ? "" : st);
+    const cur = STATE.steps[seg.dataset.step] || {};
+    let tip = seg.dataset.step.replace(/^s(\d+)_/, "S$1 ").replace(/_/g, " ");
+    if (st === "running" && cur._t0) tip += " · " + mmss(Date.now() - cur._t0);
+    else if (cur.duration_ms != null) tip += " · " + fmtDur(cur.duration_ms);
+    seg.setAttribute("data-tip", tip);
+  });
+}
+// 运行中步进条的耗时 tooltip 与节点计时器同步刷新
+setInterval(() => {
+  if (STATE.status === "running") updateStepper();
+}, 1000);
+function updateElapsed() {
+  if (!startTime) return;
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  $("elapsed").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+
+/* ================= 结果表 ================= */
+async function loadResults() {
+  try {
+    const r = await fetch("/api/top?n=30");
+    const d = await r.json();
+    if (!d.ok) return;
+    const head = $("res-head"), body = $("res-body");
+    const cols = ["排名", "英文名", "中文名", "总分", "命中靶点数", "锚定命中", "锚定覆盖率", "OB", "DL", "命中锚定靶点"];
+    head.innerHTML = cols.map(c => `<th>${c}</th>`).join("");
+    const maxScore = Math.max(...d.rows.map(x => +x["总分"] || 0), 0.001);
+    body.innerHTML = d.rows.map(row => {
+      const cov = row["锚定覆盖率"];
+      const covTxt = (cov != null && cov !== "" && !isNaN(+cov))
+        ? (+cov >= 1 ? (Math.round(+cov * 100) / 100) : Math.round(+cov * 100) + "%") : "—";
+      return `
+      <tr data-comp="${row["英文名"]}">
+        <td class="rank-${row["排名"]}">${row["排名"]}</td>
+        <td><b>${row["英文名"]}</b></td>
+        <td>${row["中文名"] || ""}</td>
+        <td><span class="score-bar" style="width:${(+row["总分"] || 0) / maxScore * 66}px"></span><b>${row["总分"]}</b></td>
+        <td>${row["命中靶点数"]}</td>
+        <td style="color:var(--green)">${row["锚定靶点命中数"]}</td>
+        <td style="color:var(--accent2)">${covTxt}</td>
+        <td>${row["OB"] ?? "—"}</td>
+        <td>${row["DL"] ?? "—"}</td>
+        <td style="font-size:11px">${String(row["命中锚定靶点"] || "").replaceAll("；", ", ")}</td>
+      </tr>`;}).join("");
+    body.querySelectorAll("tr").forEach(tr =>
+      tr.addEventListener("click", () => openCompound(tr.dataset.comp)));
+    toast("筛选结果已更新 · Top 30");
+  } catch (e) { /* 忽略 */ }
+}
+
+async function openCompound(name) {
+  const r = await fetch(`/api/scored_detail?compound=${encodeURIComponent(name)}`);
+  const d = await r.json();
+  if (!d.ok) return;
+  const tags = d.targets.map((t, i) => `
+    <span class="target-tag ${t.layer === "临床锚定" ? "anchor" : "mech"}" style="animation-delay:${i * 60}ms">
+      ${t.gene}${t.n_drugs ? ` <small>· ${t.n_drugs} 药${t.actions ? " · " + t.actions : ""}</small>` : ""}
+    </span>`).join("");
+  $("modal-content").innerHTML = `
+    <div class="modal-head">
+      <h3>${d.compound}</h3>
+      <span class="modal-close" onclick="document.getElementById('compound-modal').classList.remove('show')">✕</span>
+    </div>
+    <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px">
+      排名 #${d.rank} · 总分 <b style="color:var(--accent2)">${d.score}</b> · 循证靶点 ${d.targets.length} 个
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">靶点循证链（绿色=临床锚定 / 紫色=文献机制）</div>
+    <div>${tags}</div>`;
+  $("compound-modal").classList.add("show");
+}
+$("compound-modal").addEventListener("click", e => {
+  if (e.target.id === "compound-modal") e.target.classList.remove("show");
+});
+
+/* ================= SSE 连接 ================= */
+function connectSSE() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource("/api/events");
+  evtSource.onopen = () => $("conn-badge").classList.add("on");
+  evtSource.onerror = () => $("conn-badge").classList.remove("on");
+  evtSource.onmessage = e => {
+    const ev = JSON.parse(e.data);
+    handleEvent(ev);
+  };
+}
+
+function handleEvent(ev) {
+  if (ev.type === "full_state") {
+    STATE = ev.state;
+    if (!dagLayout && STATE.steps && Object.keys(STATE.steps).length) {
+      STEP_META = Object.values(STATE.steps).map(s => ({
+        name: s.name, domain: s.domain, desc: s.desc, deps: s.deps }));
+      dagLayout = computeLayout(STEP_META);
+      renderDAG();
+    }
+    updateHeader(); renderTimeline();
+  }
+  else if (ev.type === "run_start") {
+    STEP_META = ev.steps;
+    STATE = { steps: {}, status: "running", run_id: ev.run_id };
+    dagLayout = computeLayout(STEP_META);
+    for (const k in stepLogStore) delete stepLogStore[k];   // 新一轮清空日志缓存
+    viewTransform = { x: 0, y: 0, k: 1 };
+    renderDAG();
+    startTime = new Date();
+    if (!elapsedTimer) elapsedTimer = setInterval(updateElapsed, 1000);
+    updateHeader();
+    fetch("/api/state").then(r => r.json()).then(s => {
+      STATE = s; renderDAG(); renderTimeline(); updateHeader();
+    });
+    loadEvidenceAll();
+    toast("工作流已启动：" + ev.run_id);
+  }
+  else if (ev.type === "step_start") {
+    STATE.steps[ev.step] = STATE.steps[ev.step] || {};
+    STATE.steps[ev.step].status = "running";
+    STATE.steps[ev.step].started_at = new Date().toISOString().slice(0, 19);
+    STATE.steps[ev.step]._t0 = Date.now();          // v2：计时器锚点
+    delete STATE.steps[ev.step].progress;
+    STATE.status = "running";
+    refreshNode(ev.step);                            // 展开日志区 + 同层让位
+    if (selectedStep === ev.step) renderDetail(ev.step);
+    updateHeader(); updateStepper();
+  }
+  else if (ev.type === "progress") {
+    if (STATE.steps[ev.step]) {
+      STATE.steps[ev.step].progress = ev.progress;
+      STATE.steps[ev.step].progress_msg = ev.message;
+      if (ev.detail && Object.keys(ev.detail).length)
+        STATE.steps[ev.step].progress_detail = ev.detail;
+    }
+    if (selectedStep === ev.step) renderDetail(ev.step);
+    // v2：轻量更新节点进度条/百分比/副标题（不重建节点）
+    const g = document.querySelector(`.node-group[data-name="${ev.step}"]`);
+    if (g) {
+      const p = ev.progress || 0;
+      const bg = g.querySelector(".node-pbar-bg");
+      const fill = g.querySelector(".node-pbar-fill");
+      const pct = g.querySelector(".node-pct");
+      if (bg && fill) {
+        const W = +bg.getAttribute("width");
+        fill.setAttribute("width", W * p);
+      }
+      if (pct) pct.textContent = Math.round(p * 100) + "%";
+      const sub = g.querySelector(".node-sub");
+      if (sub && ev.message) { sub.textContent = String(ev.message).slice(0, 26); sub.setAttribute("fill", "#22d3ee"); }
+    }
+  }
+  else if (ev.type === "step_log") {
+    // 步骤运行日志实时流（终端式控制台 + v2 节点内嵌日志）
+    pushStepLogLocal(ev.step, { level: ev.level, message: ev.message, ts: ev.ts });
+    appendNodeLogLine(ev.step, { level: ev.level, message: ev.message, ts: ev.ts });
+    if (selectedStep === ev.step) renderLogConsole(ev.step);
+  }
+  else if (ev.type === "step_end") {
+    fetch("/api/state").then(r => r.json()).then(s => {
+      STATE = s; refreshNode(ev.step);           // 收起/展开 + 同层让位动画
+      if (selectedStep === ev.step) renderDetail(ev.step);
+      renderTimeline(); updateHeader(); updateStepper();
+      if (ev.step === "s9_scoring" && ev.status === "success") loadResults();
+    });
+    fetch(`/api/evidence?step=${ev.step}&limit=10`).then(r => r.json())
+      .then(d => { if (d.items && d.items.length) addEvidenceCards(d.items); });
+  }
+  else if (ev.type === "run_end") {
+    STATE.status = ev.status;
+    fetch("/api/state").then(r => r.json()).then(s => {
+      STATE = s; renderDAG(); renderTimeline(); updateHeader(); updateStepper();
+    });
+    if (ev.status === "success") toast("✔ 工作流全部完成");
+    else if (ev.status === "partial") toast("⚠ 工作流部分完成（有步骤失败/跳过）");
+    else toast("✘ 工作流失败");
+  }
+  else if (ev.type === "chat_start") {
+    // 用户消息通常已由 sendChat 本地渲染，这里防重
+    const msgs = document.querySelectorAll("#chat-messages .msg.user .bubble");
+    const last = msgs.length ? msgs[msgs.length - 1] : null;
+    if (!last || last.textContent !== ev.message) appendMsg("user", ev.message);
+    streamBuffer = "";
+    streamBubble = null;
+    showTyping();
+  }
+  else if (ev.type === "chat_delta") {
+    // 流式增量：首帧收起 typing，创建流式气泡逐字追加
+    hideTyping();
+    streamBuffer += ev.delta || "";
+    if (!streamBubble) {
+      streamBubble = appendStreamMsg();
+    }
+    streamBubble.innerHTML = mdLite(streamBuffer) + '<span class="stream-cursor"></span>';
+    chatScroll();
+  }
+  else if (ev.type === "chat_retry") {
+    showTyping();
+    const t = $("chat-typing");
+    if (t) t.querySelector(".bubble").innerHTML =
+      `<span class="typing"><i></i><i></i><i></i></span>
+       <span style="color:var(--amber);font-size:12px">请求失败，自动重试 ${ev.attempt}/${ev.max_retries}…</span>`;
+  }
+  else if (ev.type === "tool_start") {
+    addToolCard(ev.tool, ev.args);
+    showTyping();
+  }
+  else if (ev.type === "tool_end") {
+    const cards = [...document.querySelectorAll(".tool-card.running")]
+      .filter(c => c.dataset.tool === ev.tool);
+    updateToolCard(cards[cards.length - 1], ev.ok, ev.result_preview);
+    showTyping();
+  }
+  else if (ev.type === "chat_reply") {
+    hideTyping();
+    if (streamBubble) {
+      // 流式已推送完整内容：移除光标，终态对齐（服务端重复内容不再追加）
+      streamBubble.innerHTML = mdLite(ev.content || streamBuffer);
+      streamBubble = null; streamBuffer = "";
+    } else {
+      appendMsg("ai", ev.content);
+    }
+    chatBusy = false; updateSendBtn(); clearTimeout(chatGuardTimer);
+  }
+  else if (ev.type === "chat_error") {
+    hideTyping();
+    if (streamBubble) { streamBubble.closest(".msg").remove(); streamBubble = null; streamBuffer = ""; }
+    appendMsg("error", ev.error);
+    chatBusy = false; updateSendBtn(); clearTimeout(chatGuardTimer);
+  }
+}
+
+async function loadEvidenceAll() {
+  const r = await fetch("/api/evidence?limit=200");
+  const d = await r.json();
+  if (d.items && d.items.length) addEvidenceCards(d.items);
+  $("ev-count").textContent = d.total || d.items.length;
+}
+
+/* ================= AI 助手 ================= */
+let chatBusy = false;
+let chatGuardTimer = null;
+let streamBuffer = "";     // 流式内容缓冲
+let streamBubble = null;   // 当前流式气泡
+let PROVIDERS_DATA = null;
+
+const TOOL_LABELS = {
+  workflow_state: "查询工作流状态",
+  workflow_results: "查询筛选结果",
+  workflow_targets: "查询统一靶点集",
+  workflow_detail: "成分循证链",
+  compound_search: "检索分子库",
+  compound_screen: "高级筛选",
+  python_calc: "数据分析",
+  export_report: "导出报告 CSV",
+  string_ppi: "STRING 蛋白互作网络",
+  string_enrichment: "STRING 功能富集",
+  kegg_enrichment: "KEGG 通路富集",
+  uniprot_gene: "UniProt 蛋白注释",
+  tcmbank_search: "TCMBank 检索",
+  tcmbank_detail: "TCMBank 详情互查",
+  npass_search_compound: "NPASS 天然产物检索",
+  pubchem_lookup: "PubChem 属性查询",
+  opentargets_search: "Open Targets 搜索",
+  opentargets_disease_targets: "疾病→靶点关联",
+  swisstarget_predict: "反向靶点预测（约60s）",
+  ctd_chem_gene: "CTD 化学物-基因交互"
+};
+const TOOL_ONLINE = new Set(["tcmbank_search", "tcmbank_detail", "npass_search_compound",
+  "pubchem_lookup", "opentargets_search", "opentargets_disease_targets", "swisstarget_predict",
+  "string_ppi", "string_enrichment", "kegg_enrichment", "uniprot_gene"]);
+
+const SUGGESTIONS = [
+  "Top 10 候选小分子是哪些？",
+  "TNF 被哪些成分命中？支撑药物有哪些？",
+  "槲皮素的理化属性和完整循证链",
+  "按化学结构大类统计平均总分",
+  "用 CTD 本地库验证 Berberine 与 UC 的基因关联"
+];
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function mdLite(t) {
+  let h = escapeHtml(t || "");
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  h = h.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  h = h.replace(/^#{1,4}\s*(.+)$/gm, "<b>$1</b>");
+  h = h.replace(/^\s*[-*]\s+(.+)$/gm, "• $1");
+  h = h.replace(/\n/g, "<br>");
+  return h;
+}
+function chatScroll() {
+  const m = $("chat-messages");
+  m.scrollTop = m.scrollHeight;
+}
+function removeWelcome() {
+  const w = $("chat-welcome");
+  if (w) w.remove();
+}
+function fillSuggestions() {
+  const sg = document.querySelector("#chat-welcome .chat-suggest");
+  if (!sg) return;
+  sg.innerHTML = "";
+  SUGGESTIONS.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = s;
+    b.addEventListener("click", () => sendChat(s));
+    sg.appendChild(b);
+  });
+}
+function renderWelcome() {
+  const d = document.createElement("div");
+  d.id = "chat-welcome";
+  d.innerHTML = `
+    <div style="font-size:34px;opacity:.55;text-align:center">✦</div>
+    <div style="text-align:center;font-size:14px;font-weight:700;margin:8px 0 4px">AI 研究助手已就绪</div>
+    <div style="text-align:center;color:var(--muted);font-size:12px;line-height:1.8;margin-bottom:14px">
+      可查询本地工作流数据，也可实时检索 TCMBank · NPASS · PubChem ·<br>
+      Open Targets · CTD 等数据库。点击下方问题快速开始，或直接输入提问。
+    </div>
+    <div class="chat-suggest"></div>`;
+  $("chat-messages").appendChild(d);
+  fillSuggestions();
+}
+function appendMsg(role, text) {
+  removeWelcome();
+  const w = document.createElement("div");
+  w.className = "msg " + role;
+  const avatar = role === "user" ? "🧑‍🔬" : "✦";
+  w.innerHTML = `
+    <div class="avatar">${avatar}</div>
+    <div class="bubble">${role === "ai" ? mdLite(text) : escapeHtml(text)}</div>`;
+  $("chat-messages").appendChild(w);
+  chatScroll();
+  return w.querySelector(".bubble");
+}
+function appendStreamMsg() {
+  // 创建流式气泡（复用 ai 消息样式），返回 .bubble 元素
+  removeWelcome();
+  const w = document.createElement("div");
+  w.className = "msg ai";
+  w.innerHTML = `<div class="avatar">✦</div><div class="bubble"></div>`;
+  $("chat-messages").appendChild(w);
+  return w.querySelector(".bubble");
+}
+function showTyping() {
+  if ($("chat-typing")) return;
+  const w = document.createElement("div");
+  w.className = "msg ai";
+  w.id = "chat-typing";
+  w.innerHTML = `<div class="avatar">✦</div><div class="bubble">
+    <span class="typing"><i></i><i></i><i></i></span>
+    <span style="color:var(--muted);font-size:12px">思考中…</span></div>`;
+  $("chat-messages").appendChild(w);
+  chatScroll();
+}
+function hideTyping() {
+  const t = $("chat-typing");
+  if (t) t.remove();
+}
+function addToolCard(name, args) {
+  removeWelcome();
+  const card = document.createElement("div");
+  card.className = "tool-card running" + (TOOL_ONLINE.has(name) ? " online" : "");
+  card.dataset.tool = name;
+  const label = TOOL_LABELS[name] || name;
+  let brief = "";
+  try {
+    brief = Object.entries(args || {}).slice(0, 2)
+      .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`).join(" · ");
+  } catch (e) {}
+  card.innerHTML = `
+    <div class="tc-head">
+      <span class="tc-icon">${TOOL_ONLINE.has(name) ? "🌐" : "🗄"}</span>
+      <span style="flex:0 0 auto">${label}</span>
+      <span class="tc-brief" title="${escapeHtml(brief)}">${escapeHtml(brief)}</span>
+      <span class="tc-status"><span class="tc-spinner"></span>运行中</span>
+    </div>
+    <div class="tc-detail">── 参数 ──\n${escapeHtml(JSON.stringify(args || {}, null, 1))}</div>`;
+  card.addEventListener("click", () => card.classList.toggle("open"));
+  $("chat-messages").appendChild(card);
+  chatScroll();
+  return card;
+}
+function updateToolCard(card, ok, preview) {
+  if (!card) return;
+  card.classList.remove("running");
+  card.classList.add(ok ? "ok" : "fail");
+  card.querySelector(".tc-status").innerHTML = ok ? "✔ 完成" : "✘ 失败";
+  const d = card.querySelector(".tc-detail");
+  d.textContent += "\n── 结果 ──\n" + (preview || "(空)");
+  chatScroll();
+}
+function updateSendBtn() {
+  const b = $("chat-send");
+  b.disabled = chatBusy;
+  b.textContent = chatBusy ? "⏳ 处理中" : "发送";
+}
+function armChatGuard() {
+  clearTimeout(chatGuardTimer);
+  chatGuardTimer = setTimeout(() => {
+    if (chatBusy) {
+      chatBusy = false; updateSendBtn(); hideTyping();
+      if (streamBubble) { streamBubble.closest(".msg").remove(); streamBubble = null; streamBuffer = ""; }
+      appendMsg("error", "等待 AI 回复超时（120s）。可能是网络问题或工具执行过慢（反向靶点预测约需 60-70 秒），请重试。");
+    }
+  }, 120000);
+}
+
+async function sendChat(text) {
+  if (chatBusy) return;
+  const input = $("chat-input");
+  const msg = (text != null ? text : input.value).trim();
+  if (!msg) return;
+  if (text == null) { input.value = ""; input.style.height = "auto"; }
+  chatBusy = true; updateSendBtn(); armChatGuard();
+  streamBuffer = ""; streamBubble = null;
+  appendMsg("user", msg);
+  showTyping();
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      chatBusy = false; updateSendBtn(); clearTimeout(chatGuardTimer); hideTyping();
+      appendMsg("error", d.msg || "发送失败");
+      if (d.need_config) openLLMModal();
+    }
+  } catch (e) {
+    chatBusy = false; updateSendBtn(); clearTimeout(chatGuardTimer); hideTyping();
+    appendMsg("error", "网络错误：" + e);
+  }
+}
+
+async function loadChatHistory() {
+  try {
+    const r = await fetch("/api/chat_history");
+    const d = await r.json();
+    if (d.ok && d.messages && d.messages.length) {
+      removeWelcome();
+      d.messages.forEach(m => appendMsg(m.role === "user" ? "user" : "ai", m.content));
+    }
+  } catch (e) {}
+}
+
+function updateLLMStatus(cfg) {
+  const el = $("llm-status");
+  if (cfg && cfg.base_url && cfg.api_key && cfg.model) {
+    el.className = "llm-status-pill ok";
+    el.textContent = "⚙ 已连接 " + cfg.model;
+  } else {
+    el.className = "llm-status-pill na";
+    el.textContent = "⚙ LLM 未配置 · 点击设置";
+  }
+}
+
+function fillProviderForm(key) {
+  const p = PROVIDERS_DATA && PROVIDERS_DATA.providers[key];
+  if (!p) return;
+  $("llm-baseurl").value = p.base_url || "";
+  $("llm-model").value = (p.models && p.models[0]) || "";
+  $("llm-model-list").innerHTML = (p.models || []).map(m => `<option value="${m}">`).join("");
+  $("llm-keyhint").textContent = p.key_hint || "";
+}
+
+async function loadProvidersUI() {
+  try {
+    const r = await fetch("/api/providers");
+    PROVIDERS_DATA = await r.json();
+    updateLLMStatus(PROVIDERS_DATA.current);
+    const sel = $("llm-provider");
+    sel.innerHTML = "";
+    Object.entries(PROVIDERS_DATA.providers).forEach(([k, p]) => {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = p.label;
+      sel.appendChild(o);
+    });
+    const cur = PROVIDERS_DATA.current || {};
+    sel.value = (cur.provider && PROVIDERS_DATA.providers[cur.provider]) ? cur.provider : "kimi";
+    fillProviderForm(sel.value);
+    if (cur.api_key) {
+      $("llm-key").placeholder = "已保存（" + cur.api_key + "）· 留空保持不变";
+    }
+    $("llm-tools").innerHTML = (PROVIDERS_DATA.tools || [])
+      .map(t => `<span title="${t.name}">${TOOL_LABELS[t.name] || t.name}</span>`).join("");
+  } catch (e) {}
+}
+
+function openLLMModal() {
+  $("llm-modal").classList.add("show");
+}
+
+/* AI 相关事件绑定 */
+$("btn-ai").addEventListener("click", () => {
+  document.querySelector('.tab[data-tab="chat"]').click();
+});
+$("llm-status").addEventListener("click", openLLMModal);
+$("chat-send").addEventListener("click", () => sendChat());
+$("chat-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+$("chat-input").addEventListener("input", function () {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 120) + "px";
+});
+$("btn-chat-reset").addEventListener("click", async () => {
+  try { await fetch("/api/chat_reset", { method: "POST" }); } catch (e) {}
+  $("chat-messages").innerHTML = "";
+  renderWelcome();
+  streamBuffer = ""; streamBubble = null;
+  toast("对话已清空");
+});
+$("llm-provider").addEventListener("change", function () { fillProviderForm(this.value); });
+$("llm-save").addEventListener("click", async () => {
+  const payload = {
+    provider: $("llm-provider").value,
+    base_url: $("llm-baseurl").value.trim(),
+    model: $("llm-model").value.trim()
+  };
+  const key = $("llm-key").value.trim();
+  if (key) payload.api_key = key;
+  try {
+    const r = await fetch("/api/llm_config", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      updateLLMStatus(d.current);
+      $("llm-key").value = "";
+      $("llm-key").placeholder = "已保存（" + d.current.api_key + "）· 留空保持不变";
+      toast("LLM 配置已保存");
+      $("llm-modal").classList.remove("show");
+    } else toast("保存失败");
+  } catch (e) { toast("保存失败：" + e); }
+});
+$("llm-modal").addEventListener("click", e => {
+  if (e.target.id === "llm-modal") e.target.classList.remove("show");
+});
+
+/* ================= Tabs ================= */
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".tab-body").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    $(t.dataset.tab + "-body").classList.add("active");
+    if (t.dataset.tab === "results") loadResults();
+  });
+});
+
+/* ================= 启动按钮 ================= */
+$("btn-run").addEventListener("click", async () => {
+  const r = await fetch("/api/run", { method: "POST" });
+  const d = await r.json();
+  if (!d.ok) toast(d.msg);
+});
+$("btn-fit").addEventListener("click", () => {
+  viewTransform = { x: 0, y: 0, k: 1 };
+  document.getElementById("dag-root")?.setAttribute("transform", "translate(0,0) scale(1)");
+});
+
+/* ================= 初始化 ================= */
+(async function init() {
+  try {
+    const r = await fetch("/api/state");
+    STATE = await r.json();
+    if (STATE.steps && Object.keys(STATE.steps).length) {
+      STEP_META = Object.values(STATE.steps).map(s => ({
+        name: s.name, domain: s.domain, desc: s.desc, deps: s.deps }));
+      dagLayout = computeLayout(STEP_META);
+      renderDAG(); renderTimeline(); updateHeader(); updateStepper();
+      // v2：恢复运行中步骤的计时锚点（页面刷新后计时器继续走）
+      Object.entries(STATE.steps).forEach(([nm, s]) => {
+        if (s.status === "running" && s.started_at) {
+          const t = new Date(s.started_at).getTime();
+          if (!isNaN(t)) s._t0 = t;
+        }
+      });
+      if (["success", "partial"].includes(STATE.status)) {
+        loadResults(); loadEvidenceAll();
+        $("ev-count").textContent = STATE.evidence_count || 0;
+      }
+    }
+  } catch (e) { console.warn(e); }
+  fillSuggestions();
+  loadProvidersUI();
+  loadChatHistory();
+  connectSSE();
+})();
+</script>
+</body>
+</html>

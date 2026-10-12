@@ -1,0 +1,23 @@
+# open-tcm-discovery runtime dependencies
+# install: <python> -m pip install -r requirements.txt
+# (bin/vina.exe is bundled separately - no installation needed)
+
+# core (server + live retrieval)
+mcp>=1.0
+httpx>=0.24
+pydantic>=2.0
+
+# chemistry & math (ADME / classification / ADMET / embedding)
+rdkit>=2023.9
+numpy>=1.24
+
+# figures (network rendering)
+matplotlib>=3.7
+pillow>=10.0
+
+# optional: legacy networkx layout (FR fallback is built in)
+# networkx>=3.0
+
+# docking pipeline prep (PDBQT)
+meeko>=0.5
+gemmi>=0.6

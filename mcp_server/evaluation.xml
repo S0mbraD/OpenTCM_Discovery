@@ -1,0 +1,146 @@
+<evaluation>
+   <qa_pair>
+      <question>A researcher studying inflammatory bowel disease wants to know about the protoberberine alkaloid that gives Coptis chinensis (Huang-Lian) its yellow color (PubChem CID 2353). Search TCMBank for this alkaloid and find its SULFATE salt form, which is a dimer. What is the molecular formula of that sulfate salt entry?</question>
+      <answer>C40H38N2O12S+2</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What is the PubChem InChIKey of the compound whose KEGG entry ID is C00757? Report the full InChIKey string.</question>
+      <answer>YBHILYKTIRIUTE-UHFFFAOYSA-N</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>In the STRING protein-protein interaction network (human), what is the combined_score of the interaction between PTGS2 and IL6, as reported by the STRING v12 network API? Report the exact number as shown (e.g. format like 0.123).</question>
+      <answer>0.96</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>How many distinct PubMed publications support the curated interaction between berberine and the TNF gene in humans (taxon 9606) in CTD? Report the count.</question>
+      <answer>4</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>The human gene PTGS2 (also known as COX-2) is located on which cytogenetic band according to NCBI Gene? Report the map location string.</question>
+      <answer>1q31.1</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>When searching NPASS natural product database for "quercetin", what is the NPASS natural product ID (NPC ID) of the first listed entry, and its molecular weight as shown in the search result table? Report in the format "NPC_ID MW".</question>
+      <answer>NPC127546 448.1</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Ulcerative colitis has a MONDO ID. Query Open Targets for the top disease associations of ulcerative colitis by name, then find its exact MONDO ID. Report the MONDO ID.</question>
+      <answer>MONDO_0005101</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Run functional enrichment analysis (g:Profiler, human) on the gene set TNF, IL6, PTGS2, IL1B, CCL2. Which KEGG pathway appears among the top enriched terms with the smallest adjusted p-value among KEGG terms? Report the pathway name only.</question>
+      <answer>IL-17 signaling pathway</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>The UniProt accession P01308 corresponds to a hormone protein. According to its UniProt annotation, what is the recommended protein name? Report the name only.</question>
+      <answer>Insulin</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>PDB entry 4HHB is a landmark crystal structure. What experimental method was used and at what resolution (in Angstroms) was it solved? Report in the format "METHOD, resolution" (e.g. "X-RAY DIFFRACTION, 1.74").</question>
+      <answer>X-RAY DIFFRACTION, 1.74</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Map the UniProt accession P04637 (TP53) to ChEMBL identifiers using the UniProt ID mapping service (tcm_uniprot_idmap). What is the resulting ChEMBL ID?</question>
+      <answer>CHEMBL4096</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Cross-screen the human gene TNF across databases (STRING, Open Targets, SymMap and Pharos via tcm_cross_database_screen). What Target Development Level (TDL) does Pharos assign to TNF, and what is its consensus score?</question>
+      <answer>Tclin, 4/4</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Cross-screen the compound berberine across PubChem, ChEMBL and SymMap (tcm_cross_database_screen mode=compound). What PubChem CID and InChIKey does it resolve to, and what is its consensus score?</question>
+      <answer>CID 2353, InChIKey YBHILYKTIRIUTE-UHFFFAOYSA-N, consensus 3/3</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Classify the structure of quercetin using the rule-based TCM chemical-class classifier (tcm_classify_structure, name=quercetin). Which chemical class does it belong to, and which engine is used?</question>
+      <answer>flavonoid, rdkit SMARTS</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Classify the structure of chrysophanol using the rule-based classifier (tcm_classify_structure, name=chrysophanol). Which TCM chemical class does it belong to?</question>
+      <answer>anthraquinone</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Classify the structure of berberine using the rule-based classifier (tcm_classify_structure, name=berberine). Which TCM chemical class does it belong to?</question>
+      <answer>alkaloid</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Call tcm_pubchem_lookup twice with the same input name=berberine within the cache TTL. What marker does the SECOND response carry that proves it was served from the transparent response cache?</question>
+      <answer>[cache hit</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Run tcm_smart_run with goal "research ulcerative colitis targets and dock candidate compounds" WITHOUT providing docking_inputs. What does the engine do when it reaches the docking branch, and where is the session checkpoint stored?</question>
+      <answer>it pauses listing the missing docking prerequisites (receptor_pdb, literature pocket_residues, ligand); checkpoints in ~/.tcm_mcp_state/sessions/</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Profile quercetin with the batch physicochemical profiler (tcm_adme_profile, compounds=["quercetin"]). What TPSA and H-bond donor count does it report?</question>
+      <answer>TPSA 131.36, HBD 5</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What is the evidence-tier scoping statement that tcm_adme_profile attaches to its drug-likeness output relative to the TCMSP OB/DL ADME gates?</question>
+      <answer>structural descriptors complement - never replace - the TCMSP OB&gt;=30 / DL&gt;=0.18 ADME gates</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>When tcm_network_simulation removes each node of a STRING PPI network once and measures global-efficiency loss, what statistical control does it compare each observed loss against, and what threshold flags a node as significantly fragile?</question>
+      <answer>matched Monte-Carlo random-removal trials (z-score against the random loss distribution); |z| &gt;= 2</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What is the default Vina exhaustiveness of dock_batch_screening and what must be done with its top-ranked hits before drawing conclusions?</question>
+      <answer>exhaustiveness 4 (fast triage); re-dock top hits at exhaustiveness 16 with dock_vina_docking</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>How does the multi-arm analysis network (tcm_multi_path_run) rank candidate compounds, and what caveat is attached to that ranking?</question>
+      <answer>rule-based weighted composite (cross-database consensus + drug-likeness + affinity when docked); it is a prioritization heuristic, NOT a validated scoring function</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Mine PubMed literature evidence for berberine x TNF (tcm_literature_mine, compound=berberine, genes=["TNF"]). Roughly how many PubMed records co-mention both, and what does the tool say about interpreting co-occurrence?</question>
+      <answer>several hundred records (672 at anchor time); co-occurrence is a bibliometric signal, NOT causal validation</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Run tcm_formula_analysis on the classic herb pair 黄连 + 黄柏. What molecule counts does the local SymMap index report for each herb?</question>
+      <answer>Huanglian (Coptidis Rhizoma, SMHB00186) 241 molecules; Huangbai (Phellodendri Chinensis Cortex, SMHB00184) 253 molecules</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What three signals does dock_rescore combine into its composite re-rank score, and what discipline note accompanies it?</question>
+      <answer>normalised affinity + literature-pocket anchoring rate + mode-gap penalty; it is a prioritization heuristic, NOT a validated scoring function, and all outputs remain proposed docking model</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What does tcm_network_figure embed in the figure caption and what resolution does it render?</question>
+      <answer>data source, node/edge counts, hub ranking rule, computational-evidence-tier statement and queried_at; 3200x2200 PNG plus a PDF</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What embedding pipeline does tcm_graph_embed use (three stages, pure numpy) and what two perspectives does it cross-reference?</question>
+      <answer>biased random walks (p/q) -&gt; PMI co-occurrence -&gt; truncated SVD; cross-referenced against degree-based centrality (dual-perspective consensus)</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Why is tcm_scrna_channel discovery-only, and what two expression APIs were probed dead?</question>
+      <answer>HPA APIs (all shapes) return 404 and GTEx v2 fails SSL (probe 2026-10-12); the tool only returns GEO dataset discovery metadata, no cell-type expression tables</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What aqueous-solubility model does tcm_admet_predict use locally, and why does it not call ADMETlab?</question>
+      <answer>ESOL / Delaney 2004 linear regression on RDKit descriptors; ADMETlab 2.0 SSL is expired and ADMETlab 3.0 exposes no public REST prediction endpoint (probe 2026-10-12)</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Match TNF-targeted trials in ulcerative colitis with tcm_trials_match. Roughly how many trials exist, and what interpretation discipline does the tool attach?</question>
+      <answer>around 200+ trials (216 at anchor time); trial matches are translational context around the target, NOT efficacy proof of the TCM candidate compound</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What API does tcm_trials_match query live, and what stratified counts does it report alongside the trial table?</question>
+      <answer>ClinicalTrials.gov API v2; phase-stratified counts (Phase 1-4) plus per-trial NCT id, phase, status, enrollment, interventions, sponsor</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What is the vina executable resolution order after the bootstrap upgrade, and what binary is bundled inside the skill?</question>
+      <answer>explicit param &gt; VINA_EXE env &gt; skill-bundled bin/vina.exe &gt; PATH; AutoDock Vina 1.2.5 windows binary is bundled under bin/</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What does tcm_dependency_status report for each missing python dependency, and how does the optional installer work?</question>
+      <answer>tier + version + which tools break (impact matrix) + exact pip command; action=install pip-installs selected missing modules into the running interpreter (explicit opt-in only)</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Which three auto-chain steps did tcm_smart_run gain in the bootstrap upgrade (inserted between compound consensus and docking), and how does goal-text compound extraction work?</question>
+      <answer>5.1 tcm_admet_predict, 5.2 tcm_literature_mine, 5.3 tcm_trials_match; a whitelist of 27 common TCM ingredient names is matched against the goal text to fill compounds (entities verified live downstream)</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What layout algorithm does tcm_network_figure use after removing the networkx dependency?</question>
+      <answer>a built-in Fruchterman-Reingold force-directed layout implemented in pure numpy (seeded, reproducible)</answer>
+   </qa_pair>
+</evaluation>

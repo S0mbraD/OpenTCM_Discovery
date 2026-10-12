@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "open-tcm-discovery": {
+      "command": "python",
+      "args": ["<REPO>/mcp_server/unified_mcp.py", "--stdio"],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}

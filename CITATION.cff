@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "open-tcm-discovery"
+abstract: "An open MCP skill server for TCM drug discovery: live multi-database retrieval, ADME screening, network pharmacology, molecular docking (Vina), evidence grading, and clinical trial matching. 54 tools, real-time queries with source tracing, no pre-seeded answers."
+authors:
+  - given-names: "open-tcm-discovery contributors"
+date-released: "2026-10-12"
+keywords:
+  - traditional Chinese medicine
+  - network pharmacology
+  - drug target screening
+  - molecular docking
+  - ADME
+  - MCP server
+  - bioinformatics
+  - natural products
+license: MIT

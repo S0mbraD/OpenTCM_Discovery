@@ -1,0 +1,39 @@
+name: 缺陷
+description: 工具返回错误、结果无法复核，或文档与行为不一致
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 发生了什么
+      description: 写实际输出。若涉及对接或排名，请附 source、queried_at 和种子。
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: 工具或脚本
+      placeholder: tcm_smart_run / disease_pathway_workflow.py
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 命令、params JSON、疾病名或成分名。不要贴 API Key 或本机用户目录。
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本与环境
+      placeholder: commit、Python 版本、操作系统
+    validations:
+      required: true

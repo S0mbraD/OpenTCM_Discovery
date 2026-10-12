@@ -1,0 +1,28 @@
+name: 功能或数据源
+description: 新工具、新数据库或文档缺口
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的研究问题
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: 数据从哪里来
+      description: 公开端点、许可和是否需要密钥。不要建议把答案预置进仓库。
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: 证据层级
+      options:
+        - 实验或数据库记录
+        - 结构模板
+        - 计算预测
+    validations:
+      required: true

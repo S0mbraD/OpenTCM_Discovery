@@ -1,0 +1,11 @@
+{
+  "session_id": "replace-with-paused-session-id",
+  "docking_inputs": {
+    "receptor_pdb": "REPLACE_PDB_ID",
+    "ligand": "berberine",
+    "pocket_chain": "A",
+    "pocket_residues": "REPLACE_WITH_LITERATURE_RESIDUE_NUMBERS",
+    "exhaustiveness": 16,
+    "seed": 42
+  }
+}

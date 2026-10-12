@@ -1,0 +1,25 @@
+name: 端点变化
+description: 某个数据库的 URL、字段或可用性变了
+title: "data: "
+body:
+  - type: input
+    id: db
+    attributes:
+      label: 数据库
+      placeholder: SymMap / ChEMBL / Open Targets
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: 实测
+      description: 请求、状态码、日期。写你看到的响应，不写猜测。
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: 需要改的文档
+      placeholder: references/database_availability_2026-09.md
+    validations:
+      required: false

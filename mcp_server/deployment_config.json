@@ -1,0 +1,26 @@
+{
+  "_readme": "MCP 客户端配置模板。日常使用方案 B（stdio）或方案 A（统一入口的 StreamableHTTP，默认 8002）。把 <REPO> 换成仓库绝对路径。不要把 open_tcm_discovery_mcp.py 当作 54 工具入口。",
+  "_scheme_A_StreamableHTTP": {
+    "说明": "先启动统一服务器，再注册 URL。PowerShell：$env:PYTHONUTF8='1'; python '<REPO>\\mcp_server\\unified_mcp.py' --port 8002",
+    "mcpServers": {
+      "open-tcm-discovery": {
+        "url": "http://127.0.0.1:8002/mcp"
+      }
+    }
+  },
+  "_scheme_B_stdio": {
+    "说明": "客户端按需拉起子进程。Python 3.10+，依赖见仓库 requirements.txt。",
+    "mcpServers": {
+      "open-tcm-discovery": {
+        "command": "python",
+        "args": [
+          "<REPO>/mcp_server/unified_mcp.py",
+          "--stdio"
+        ],
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      }
+    }
+  }
+}
