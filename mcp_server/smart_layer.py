@@ -31,11 +31,20 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from tcm_core.text import (  # noqa: E402
+    extract_known_compounds,
+    normalize_pocket_residues,
+)
 
 try:
     from mcp.server.fastmcp import FastMCP as _MCPBase   # mcp < 2
@@ -699,16 +708,8 @@ class _Engine:
                 "directly, skip network", "direct")
 
 
-# common TCM active-ingredient names for goal-text extraction (lowercase;
-# matched as substrings in the goal; verified downstream by live lookups)
-_KNOWN_COMPOUNDS = ("berberine", "baicalin", "quercetin", "wogonin",
-                    "emodin", "chrysophanol", "curcumin", "artemisinin",
-                    "paclitaxel", "ginsenoside", "astragaloside",
-                    "salidroside", "glycyrrhizin", "paeoniflorin",
-                    "tanshinone", "ferulic acid", "genistein",
-                    "kaempferol", "rutin", "luteolin", "apigenin",
-                    "catechin", "epigallocatechin", "silibinin",
-                    "triptolide", "celastrol", "baicalein")
+# Compound names live in tcm_core.text.KNOWN_COMPOUNDS. Live lookups still
+# have to confirm every extracted name.
 
 
 def _defer_full_herb_workflow(engine: "_Engine", disease: Optional[str]) -> None:
@@ -747,8 +748,7 @@ def _defer_full_herb_workflow(engine: "_Engine", disease: Optional[str]) -> None
 def _extract_compounds(goal: str) -> List[str]:
     """Extract known compound mentions from free-text goal (quick
     intent-level extraction; entities still verified live downstream)."""
-    g = (goal or "").lower()
-    return [c for c in _KNOWN_COMPOUNDS if c in g][:6]
+    return extract_known_compounds(goal)
 
 
 async def run_session(params: SmartRunInput) -> str:
@@ -985,13 +985,7 @@ async def run_session(params: SmartRunInput) -> str:
         return _fmt_session(engine.s, paused=True)
 
     # pocket residues: accept 'I46,I52' or '46,52'; normalize to numbers
-    pocket = dock_in["pocket_residues"]
-    nums = []
-    for tok in str(pocket).replace(";", ",").split(","):
-        digits = re.findall(r"\d+", tok)
-        if digits:
-            nums.append(digits[-1])
-    pocket_num = ",".join(nums) if nums else str(pocket)
+    pocket_num = normalize_pocket_residues(dock_in["pocket_residues"])
 
     out_dir = work / "dock"
     res = await _invoke(

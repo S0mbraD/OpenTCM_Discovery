@@ -22,6 +22,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 import time
 import urllib.parse
 from datetime import datetime, timezone
@@ -38,16 +39,14 @@ from pydantic import BaseModel, Field, ConfigDict
 mcp = _MCPBase("tcm_lit_formula_layer")
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
+if str(SKILL_ROOT) not in sys.path:
+    sys.path.insert(0, str(SKILL_ROOT))
+from tcm_core.paths import herb_index_candidates  # noqa: E402
 
 
 def _index_candidates() -> List[Path]:
-    """Repo index first; TCM_HERB_INDEX overrides when set."""
-    paths: List[Path] = []
-    env = os.environ.get("TCM_HERB_INDEX")
-    if env:
-        paths.append(Path(env))
-    paths.append(SKILL_ROOT / "data" / "herb_mol_index.json")
-    return paths
+    """TCM_HERB_INDEX when set, otherwise <repo>/data/herb_mol_index.json."""
+    return herb_index_candidates(SKILL_ROOT)
 
 _FNS: Dict[str, Callable] = {}
 

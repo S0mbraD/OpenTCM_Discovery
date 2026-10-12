@@ -4,18 +4,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- 主页改为完整的中文项目介绍，并补充数据来源说明 `docs/DATA_SOURCES.md` 与技术路线 `docs/ROADMAP.md`
+- `tcm_core`：超几何尾概率、Benjamini–Hochberg 校正、成分名提取、口袋残基解析和索引路径
+- 不访问网络的单元测试 `tests/`，并加入持续集成
+- 开源文档：`docs/README.md`、`docs/SCIENTIFIC_SCOPE.md`、`docs/WORKFLOWS.md`、`docs/TOOLS.md`、`NOTICE`、`bin/README.md`
+- GitHub Issue / PR 模板、CI 自检 `scripts/check_repo.py`
+- 本地 DAG 的额外依赖文件 `requirements-workflow.txt`
+
 ### Fixed
 
+- 疾病筛选脚本在超几何检验遇到不可能的命中数时，不再把概率算成 1。MCP 工具与脚本改为调用同一实现。扑克牌算例 P(至少 3 张红心) = 241098/2598960
 - 文档与入口注释中的工具数、默认端口和执行链与代码对齐：统一服务器 54 个工具，StreamableHTTP 默认 `127.0.0.1:8002`
 - `tcm_smart_run` 在 `depth=full` 时把四步药材工作流登记为延后步骤 D3，并给出可执行命令
 - `tcm_formula_analysis` 读取 `<仓库>/data/herb_mol_index.json`（可用 `TCM_HERB_INDEX` 覆盖），不再查找本机绝对路径
 - 部署模板改为 `unified_mcp.py`。检索族文件单独运行仍是子集服务器
-
-### Added
-
-- 开源文档：`docs/README.md`、`docs/SCIENTIFIC_SCOPE.md`、`docs/WORKFLOWS.md`、`docs/TOOLS.md`、`NOTICE`、`bin/README.md`
-- GitHub Issue / PR 模板、CI 自检 `scripts/check_repo.py`
-- 本地 DAG 的额外依赖文件 `requirements-workflow.txt`
 
 ## [3.1.0] - 2026-10-12
 

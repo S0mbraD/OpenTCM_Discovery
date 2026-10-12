@@ -45,7 +45,8 @@ def _read(path: Path) -> str:
 def check_syntax() -> list[str]:
     errors = []
     for path in ROOT.rglob("*.py"):
-        if any(part in {".git", "__pycache__", ".venv", "venv"} for part in path.parts):
+        if any(part in {".git", "__pycache__", ".venv", "venv", "OpenTCM_Discovery"}
+               for part in path.parts):
             continue
         try:
             ast.parse(_read(path), filename=str(path))
@@ -77,8 +78,12 @@ def check_tools() -> list[str]:
     if "54" not in skill.split("---", 2)[2]:
         errors.append("SKILL.md body does not mention 54 tools")
     formula = _read(MCP / "lit_formula_layer.py")
-    if 'SKILL_ROOT / "data" / "herb_mol_index.json"' not in formula:
-        errors.append("lit_formula_layer.py does not read <repo>/data/herb_mol_index.json")
+    paths = _read(ROOT / "tcm_core" / "paths.py")
+    if "herb_index_candidates" not in formula:
+        errors.append("lit_formula_layer.py does not use herb_index_candidates")
+    if 'repo_root) / "data" / "herb_mol_index.json"' not in paths and \
+            '"data" / "herb_mol_index.json"' not in paths:
+        errors.append("tcm_core.paths does not point at data/herb_mol_index.json")
     if "_defer_full_herb_workflow" not in _read(MCP / "smart_layer.py"):
         errors.append("smart_layer.py lost the depth=full deferral")
     unified = _read(MCP / "unified_mcp.py")
@@ -94,7 +99,7 @@ def check_phrases() -> list[str]:
             continue
         if path.suffix.lower() not in {".md", ".py", ".json", ".yml", ".yaml"}:
             continue
-        if any(part in {".git", "__pycache__"} for part in path.parts):
+        if any(part in {".git", "__pycache__", "OpenTCM_Discovery"} for part in path.parts):
             continue
         if path in SKIP_PHRASES:
             continue

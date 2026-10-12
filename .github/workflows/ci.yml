@@ -14,3 +14,5 @@ jobs:
           python-version: "3.11"
       - name: Syntax, tool inventory, doc consistency
         run: python scripts/check_repo.py
+      - name: Offline statistical and text tests
+        run: python -m unittest discover -s tests -v

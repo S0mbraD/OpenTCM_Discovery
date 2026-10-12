@@ -1681,6 +1681,13 @@ async def tcm_audit_evidence(params: AuditEvidenceInput) -> str:
 # 后端超时；客户端重试 3 次后返回明确错误。
 
 import math as _math
+import sys
+from pathlib import Path as _Path
+
+_REPO_ROOT = _Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from tcm_core.stats import log_hypergeom_sf as _log_hypergeom_sf  # noqa: E402
 
 SYMMAP_BASE = "http://symmap.org"
 SYMMAP_TABLES = ("Herb", "Mol", "TCM_symptom", "MM_symptom",
@@ -1967,15 +1974,8 @@ class HypergeometricInput(BaseModel):
 
 
 def _log_p_hypergeom(k: int, K: int, n: int, N: int) -> float:
-    '''ln P(X >= k), hypergeometric; log-factorial form, no overflow.'''
-    def lf(x):
-        return _math.lgamma(x + 1)
-    total = 0.0
-    for i in range(k, min(n, K) + 1):
-        lp = (lf(K) + lf(N - K) + lf(n) + lf(N - n)
-              - lf(i) - lf(K - i) - lf(n - i) - lf(N - K - n + i) - lf(N))
-        total += _math.exp(lp)
-    return _math.log(total) if total > 0 else float("-inf")
+    '''ln P(X >= k). Impossible k returns -inf, so the probability is 0.'''
+    return _log_hypergeom_sf(k, K, n, N)
 
 
 @mcp.tool(

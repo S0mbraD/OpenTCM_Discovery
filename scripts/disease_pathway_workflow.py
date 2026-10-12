@@ -38,7 +38,6 @@ Examples:
 """
 import argparse
 import json
-import math
 import os
 import sys
 import time
@@ -47,7 +46,13 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from tcm_core.stats import bh_fdr, hypergeometric_p, log_hypergeom_sf  # noqa: E402
 from symmap_client import SymMapClient, SymMapTimeout, first_id  # noqa: E402
+
+logp_hypergeometric = log_hypergeom_sf
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 KEGG = "https://rest.kegg.jp"
@@ -83,51 +88,6 @@ def load_json(path, default=None):
 
 def stamp():
     return time.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def logp_hypergeometric(k, K, n, N):
-    """ln P(X >= k) for hypergeometric (population N, successes K,
-    draws n, observed k). Uses log-factorial to avoid overflow."""
-    def lnfact(x):
-        return math.lgamma(x + 1)
-
-    if k > min(n, K):
-        return 0.0  # impossible -> P = 1
-    total = 0.0
-    # P(X >= k) = sum_{i=k}^{min(n,K)} C(K,i) C(N-K, n-i) / C(N,n)
-    for i in range(k, min(n, K) + 1):
-        lp = (lnfact(K) + lnfact(N - K) + lnfact(n) + lnfact(N - n)
-              - lnfact(i) - lnfact(K - i) - lnfact(n - i) - lnfact(N - K - n + i)
-              - lnfact(N))
-        total += math.exp(lp)
-    return math.log(total) if total > 0 else float("-inf")
-
-
-def hypergeometric_p(k, K, n, N):
-    """One-tailed over-representation P(X >= k) with underflow guard."""
-    if k == 0:
-        return 1.0
-    lp = logp_hypergeometric(k, K, n, N)
-    if lp == float("-inf"):
-        return 0.0
-    p = math.exp(lp)
-    return p if p > 0 else 1e-300  # clamp tiny values, keep them "very small"
-
-
-def bh_fdr(pvals):
-    """Benjamini-Hochberg adjusted p-values."""
-    m = len(pvals)
-    if m == 0:
-        return []
-    order = sorted(range(m), key=lambda i: pvals[i])
-    adj = [0.0] * m
-    prev = 1.0
-    for rank in range(m, 0, -1):
-        idx = order[rank - 1]
-        val = min(prev, pvals[idx] * m / rank)
-        adj[idx] = val
-        prev = val
-    return adj
 
 
 # ------------------------------------------------------------------ KEGG
