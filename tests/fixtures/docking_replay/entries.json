@@ -1,0 +1,36 @@
+{
+  "verified_public_complexes": false,
+  "experimental_affinity_reproduced": false,
+  "note": "还没有放入已核对的公开复合物。这三条是检查器测试用例，名称、文献号和残基编号都是假的，没有对照原文。这些夹具没有复现实验亲和力。",
+  "entries": [
+    {
+      "case_id": "test-ready-a",
+      "label": "测试用例",
+      "complex_name": "测试用例-复合物甲",
+      "pdb_id": null,
+      "literature_id": "PMID:00000000",
+      "pocket_residues": "101,102",
+      "residue_note": "测试用例占位编号，不是公开文献写明的残基",
+      "ligand_id": "测试配体甲"
+    },
+    {
+      "case_id": "test-ready-b",
+      "label": "测试用例",
+      "target_name": "测试用例-靶点乙",
+      "literature_id": "doi:10.0000/docking-replay-test-case",
+      "pocket_residues": "201,202,203",
+      "residue_note": "测试用例占位编号，不是公开文献写明的残基",
+      "ligand_id": "测试配体乙"
+    },
+    {
+      "case_id": "test-missing-pocket",
+      "label": "测试用例",
+      "complex_name": "测试用例-缺口袋丙",
+      "pdb_id": null,
+      "literature_id": "doi:10.0000/docking-replay-missing-pocket",
+      "pocket_residues": "",
+      "residue_note": "这条故意没有口袋残基",
+      "ligand_id": "测试配体丙"
+    }
+  ]
+}

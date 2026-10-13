@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MCP = ROOT / "mcp_server"
-EXPECTED = 64
+EXPECTED = 69
 
 TOOL_RE = re.compile(
     r'@mcp\.tool\((?:(?!@mcp\.tool).){0,800}?name\s*=\s*"([^"]+)"',
@@ -83,6 +83,12 @@ def check_tools() -> list[str]:
         errors.append("unified_mcp.py does not load tcmsp_layer.py")
     if "align_layer.py" not in _read(MCP / "unified_mcp.py"):
         errors.append("unified_mcp.py does not load align_layer.py")
+    if "target_layer.py" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load target_layer.py")
+    if "formula_weight_layer.py" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load formula_weight_layer.py")
+    if "docking_replay_layer.py" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load docking_replay_layer.py")
     if "tcm_self_iterate" not in _read(MCP / "unified_mcp.py"):
         errors.append("unified_mcp.py does not load tcm_self_iterate")
     if "tcm_analysis_topology" not in _read(MCP / "unified_mcp.py"):
@@ -106,6 +112,11 @@ def check_tools() -> list[str]:
     unified = _read(MCP / "unified_mcp.py")
     if "default=8002" not in unified:
         errors.append("unified_mcp.py default port is not 8002")
+    fn_map = unified.split("_fn_map", 1)[1].split("attach_tools", 1)[0]
+    if "_formula_mod" in fn_map or "_replay_mod" in fn_map:
+        errors.append(
+            "formula weight or docking replay entered the smart-run tool map"
+        )
     return errors
 
 

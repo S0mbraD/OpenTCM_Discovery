@@ -418,7 +418,15 @@ class AnalysisGraphTests(unittest.TestCase):
         self.assertIn("tcm_kegg_disease_pathways", empty_next)
         self.assertIn("tcm_tcmsp_search", empty_next)
         self.assertNotIn("tcm_formula_analysis", empty_next)
+        self.assertNotIn("tcm_formula_weight", empty_next)
+        self.assertNotIn("tcm_check_docking_replay", empty_next)
+        self.assertNotIn("tcm_read_target_table", empty_next)
         self.assertNotIn("dock_", empty_next)
+        empty.caller_text = "剂量 靶点表 predicted recorded"
+        still_empty = "\n".join(empty.next_step_lines())
+        self.assertNotIn("tcm_formula_weight", still_empty)
+        self.assertNotIn("tcm_read_target_table", still_empty)
+        self.assertNotIn("tcm_check_docking_replay", still_empty)
         self.assertIn("不会自动执行", empty_next)
         self.assertIn("图例", "\n".join(empty.summary_lines()))
 
@@ -430,13 +438,18 @@ class AnalysisGraphTests(unittest.TestCase):
         self.assertIn("药材（有节点，缺与成分的边）", one_text)
         self.assertIn("tcm_tcmsp_search", one_text)
         self.assertNotIn("tcm_formula_analysis", one_text)
+        one.caller_text = "剂量各三钱"
+        one.upsert("herb", "黄连", "pending", detail="剂量 10 g")
+        self.assertNotIn("tcm_formula_weight", "\n".join(one.next_step_lines()))
         self.assertIn("药材少于 2 个，不算集合重叠", one_text)
         self.assertIn("失败", one_text)
 
         two = AnalysisGraph()
         two.note_intent(herbs=["黄连", "黄芩"])
         self.assertIn("尚未算出重叠", "\n".join(two.pathway_lines()))
-        self.assertIn("tcm_formula_analysis", "\n".join(two.next_step_lines()))
+        two_next = "\n".join(two.next_step_lines())
+        self.assertIn("tcm_formula_analysis", two_next)
+        self.assertNotIn("tcm_formula_weight", two_next)
         two.observe({
             "tool": "tcm_formula_analysis",
             "status": "ok",
@@ -490,8 +503,56 @@ class AnalysisGraphTests(unittest.TestCase):
         graph.upsert("literature", "PubMed", "done", detail="文献口袋残基 I46,I52")
         hinted = "\n".join(graph.reading_lines())
         self.assertIn("dock_vina_docking", hinted)
+        self.assertIn("tcm_check_docking_replay", hinted)
+        self.assertIn("这只是门槛，不跑对接", hinted)
         self.assertIn(DOCK_NOTE, hinted)
         self.assertIn("文献写明口袋", hinted)
+        self.assertLessEqual(hinted.count("`"), 6)
+
+    def test_next_steps_name_weight_replay_and_target_table(self):
+        quiet = AnalysisGraph()
+        quiet.note_intent(herbs=["黄连", "黄芩"], compounds=["berberine"])
+        quiet.caller_text = "两味药材，先看集合"
+        self.assertNotIn("tcm_formula_weight", "\n".join(quiet.next_step_lines()))
+        quiet.upsert("herb", "黄连", "pending", detail="剂量 10 g")
+        weight = "\n".join(quiet.next_step_lines())
+        self.assertIn("tcm_formula_weight", weight)
+        self.assertIn("点名口径", weight)
+        self.assertIn("重量比不是疗效", weight)
+        self.assertNotIn("tcm_check_docking_replay", weight)
+        self.assertLessEqual(_hint_count(quiet), 3)
+        picture = quiet.to_svg()
+        self.assertIn("tcm_formula_weight", picture)
+        self.assertIn("重量比不是疗效", picture)
+
+        from_goal = build_from_session({
+            "goal": "黄连、黄芩，剂量各三钱",
+            "disease": "",
+            "compounds": ["berberine"],
+            "genes": [],
+            "herbs": ["黄连", "黄芩"],
+            "executed": [],
+        })
+        self.assertIn("tcm_formula_weight", "\n".join(from_goal.next_step_lines()))
+
+        table = AnalysisGraph()
+        table.note_intent(disease="colitis")
+        table.caller_text = "手里有一张靶点表，predicted 和 recorded 要分开"
+        table_text = "\n".join(table.next_step_lines())
+        self.assertIn("tcm_read_target_table", table_text)
+        self.assertIn("预测行不并进已记录计数", table_text)
+        self.assertNotIn("tcm_formula_weight", table_text)
+        detail_only = AnalysisGraph()
+        detail_only.note_intent(disease="colitis")
+        detail_only.upsert("disease", "colitis", "pending", detail="recorded in a note")
+        self.assertNotIn("tcm_read_target_table", "\n".join(detail_only.next_step_lines()))
+
+        busy = AnalysisGraph()
+        busy.note_intent(disease="colitis", herbs=["黄连", "黄芩"])
+        busy.caller_text = "剂量各三钱，另有靶点表 recorded"
+        busy.upsert("literature", "PubMed", "done", detail="文献口袋残基 I46,I52")
+        self.assertLessEqual(_hint_count(busy), 3)
+        self.assertLessEqual(_hint_count(AnalysisGraph()), 3)
 
     def test_reading_markup_escapes_labels(self):
         graph = AnalysisGraph()
@@ -534,6 +595,13 @@ class AnalysisGraphTests(unittest.TestCase):
         text = "\n".join(AnalysisGraph().summary_lines())
         for heading in ("图例", "检索通路", "下一步建议", "数据源状态"):
             self.assertIn(heading, text)
+
+
+def _hint_count(graph):
+    return sum(
+        1 for line in graph.next_step_lines()
+        if line.startswith("- ") and "`" in line
+    )
 
 
 def _put_nodes(graph, kind, count, label=None, status="done"):

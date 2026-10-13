@@ -4,10 +4,10 @@
 open_tcm_discovery_mcp —— 中药药物发现 MCP 服务器
 ====================================================
 
-检索、网络、富集与自迭代工具族。完整技能的 64 工具入口是同目录
+检索、网络、富集与自迭代工具族。完整技能的 67 工具入口是同目录
 unified_mcp.py（StreamableHTTP 默认 127.0.0.1:8002）。单独运行本文件
-只暴露本文件内注册的工具，默认端口 8000，不是 64 工具服务器。
-TCMSP 旧站查询在 tcmsp_layer.py，成分名对齐在 align_layer.py，都不在本文件。
+只暴露本文件内注册的工具，默认端口 8000，不是 67 工具服务器。
+TCMSP 旧站查询在 tcmsp_layer.py，成分名对齐在 align_layer.py，靶点表读入在 target_layer.py，方剂克重在 formula_weight_layer.py，对接复现门槛在 docking_replay_layer.py，都不在本文件。
 
 数据源（2026-09-22 实测可用性，详见技能 references/database_availability_2026-09.md）：
     - 中药库：HERB 2.0 / TCMBank / NPASS / SymMap

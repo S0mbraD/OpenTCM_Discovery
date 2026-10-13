@@ -3,8 +3,9 @@
 
 Combines the retrieval/analysis tool family (27 tools) and the
 docking/modeling tool family (8 tools) with the intelligence, parallel,
-evidence, P1, P2, bootstrap, iteration, topology, prep, TCMSP, and local
-alignment layers into one 64-tool server:
+evidence, P1, P2, bootstrap, iteration, topology, prep, TCMSP, local
+alignment, caller target-table, formula-weight, and docking-replay gate
+layers into one 69-tool server:
 
   unified_overview  - first-contact orientation: modules, tool inventory,
                       state health, quick-start protocol
@@ -60,6 +61,10 @@ TOPOLOGY_IMPL = BASE / "topology_layer.py"
 PREP_IMPL = BASE / "prep_layer.py"
 TCMSP_IMPL = BASE / "tcmsp_layer.py"
 ALIGN_IMPL = BASE / "align_layer.py"
+TARGET_IMPL = BASE / "target_layer.py"
+FORMULA_IMPL = BASE / "formula_weight_layer.py"
+REPLAY_IMPL = BASE / "docking_replay_layer.py"
+HERB_IMPL = BASE / "herb_layer.py"
 
 # ================= submodule loading + tool transfer =================
 
@@ -107,6 +112,9 @@ _topology_mod = _load_module(TOPOLOGY_IMPL, "tcm_unified_impl_topology")
 _prep_mod = _load_module(PREP_IMPL, "tcm_unified_impl_prep")
 _tcmsp_mod = _load_module(TCMSP_IMPL, "tcm_unified_impl_tcmsp")
 _align_mod = _load_module(ALIGN_IMPL, "tcm_unified_impl_align")
+_target_mod = _load_module(TARGET_IMPL, "tcm_unified_impl_target")
+_formula_mod = _load_module(FORMULA_IMPL, "tcm_unified_impl_formula")
+_replay_mod = _load_module(REPLAY_IMPL, "tcm_unified_impl_replay")
 
 # transparent response cache on read-only retrieval tools (schema unchanged;
 # original queried_at preserved inside cached responses)
@@ -134,7 +142,14 @@ _TOPOLOGY_TOOLS, _topology_skip = _transfer_tools(_topology_mod.mcp)
 _PREP_TOOLS, _prep_skip = _transfer_tools(_prep_mod.mcp)
 _TCMSP_TOOLS, _tcmsp_skip = _transfer_tools(_tcmsp_mod.mcp, cache_wrap=_maybe_cache)
 _ALIGN_TOOLS, _align_skip = _transfer_tools(_align_mod.mcp)
+_TARGET_TOOLS, _target_skip = _transfer_tools(_target_mod.mcp)
+_FORMULA_TOOLS, _formula_skip = _transfer_tools(_formula_mod.mcp)
+_REPLAY_TOOLS, _replay_skip = _transfer_tools(_replay_mod.mcp)
+_herb_mod = _load_module(HERB_IMPL, "tcm_unified_impl_herb")
+_HERB_TOOLS, _herb_skip = _transfer_tools(_herb_mod.mcp)
 
+# formula_weight_layer、docking_replay_layer 和 herb_layer 不放进下面这张表。
+# tcm_smart_run 不会调用它们。
 # expose underlying fns to the execution engines (smart_layer.tcm_smart_run,
 # parallel_layer, lit_formula_layer call them directly; includes the
 # parallel/p0/p1/p2 layers so the auto-chain can drive them)
@@ -267,6 +282,10 @@ async def unified_overview() -> str:
     prep_tools = sorted(_PREP_TOOLS)
     tcmsp_tools = sorted(_TCMSP_TOOLS)
     align_tools = sorted(_ALIGN_TOOLS)
+    target_tools = sorted(_TARGET_TOOLS)
+    formula_tools = sorted(_FORMULA_TOOLS)
+    replay_tools = sorted(_REPLAY_TOOLS)
+    herb_tools = sorted(_HERB_TOOLS)
     return _fmt({
         "skill": "open-tcm-discovery (unified: retrieval + analysis + "
                  "docking + execution engine)",
@@ -369,6 +388,29 @@ async def unified_overview() -> str:
                 "tcm_align_tcmsp": "join caller-supplied TCMSP rows to a "
                                    "name and InChIKey table; no network",
                 "tools": align_tools},
+            "caller_target_table": {
+                "tcm_read_target_table": "local recorded versus predicted "
+                                         "rows; predicted rows stay out of "
+                                         "the recorded source count",
+                "tools": target_tools},
+            "formula_grams": {
+                "tcm_formula_weight": "one named convention, row grams "
+                                      "summed; weight ratio is not efficacy "
+                                      "or a classical formula role",
+                "tools": formula_tools},
+            "docking_replay_gate": {
+                "tcm_check_docking_replay": "offline literature-pocket gate; "
+                                            "a pass only means ready to enter "
+                                            "a replay, and the result would "
+                                            "still be a proposed docking model",
+                "tools": replay_tools},
+            "herb_detail": {
+                "tcm_herb_detail": "HERB HTTP detail; targets on that page "
+                                   "are not recorded evidence; drug-likeness "
+                                   "is not ob or dl",
+                "tcm_broad_names": "local name candidates; a near string is "
+                                   "not the same herb and not efficacy",
+                "tools": herb_tools},
             "bootstrap": {
                 "tcm_dependency_status": "dependency health check with "
                                          "impact analysis + opt-in "
@@ -387,7 +429,8 @@ async def unified_overview() -> str:
                               _parallel_skip + _lit_skip + _rescore_skip +
                               _p1_skip + _p2_skip + _bootstrap_skip +
                               _iteration_skip + _topology_skip + _prep_skip +
-                              _tcmsp_skip + _align_skip)
+                              _tcmsp_skip + _align_skip + _target_skip +
+                              _formula_skip + _replay_skip + _herb_skip)
                               or "all tools transferred"},
         "state_health": {
             "retrieval_state": _state_snapshot(_tcm_mod.STATE_DIR),

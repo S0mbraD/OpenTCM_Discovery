@@ -21,10 +21,10 @@
 
 ## 开发流程
 
-1. 改动前先读 `modules/MODULE_INDEX.md` 与对应 layer 文件，确认改动点归属。检索族在 `open_tcm_discovery_mcp.py`，对接族在 `structure_docking_mcp.py`，统一入口在 `unified_mcp.py`。新行为若只属于某一层，不要塞进 `tcm_smart_run` 的自动链。数据整理、TCMSP 旧站检索和成分名对齐现在就不在这条自动链里。
-2. 代码改动必须同时更新 `modules/MODULE_INDEX.md`（工具注册）、SKILL.md（行为描述）与 `mcp_server/evaluation.xml`（基准题，如涉及行为变化）。`docs/TOOLS.md` 里的工具名要用反引号包住。`scripts/check_repo.py` 会扫这张表。工具总数要和代码里的注册数一致，目前是 64。只改说明时，也要让这三处和代码对得上，不要把路线图里还没做的阶段写成已经可调用。
+1. 改动前先读 `modules/MODULE_INDEX.md` 与对应 layer 文件，确认改动点归属。检索族在 `open_tcm_discovery_mcp.py`，对接族在 `structure_docking_mcp.py`，统一入口在 `unified_mcp.py`。新行为若只属于某一层，不要塞进 `tcm_smart_run` 的自动链。数据整理、TCMSP 旧站检索、成分名对齐和靶点表读入现在就不在这条自动链里。
+2. 代码改动必须同时更新 `modules/MODULE_INDEX.md`（工具注册）、SKILL.md（行为描述）与 `mcp_server/evaluation.xml`（基准题，如涉及行为变化）。`docs/TOOLS.md` 里的工具名要用反引号包住。`scripts/check_repo.py` 会扫这张表。工具总数要和代码里的注册数一致，目前是 69。只改说明时，也要让这三处和代码对得上，不要把路线图里还没做的阶段写成已经可调用。
 3. 新工具遵循既有前缀：检索/分析 `tcm_`，对接/结构 `dock_`。数据整理、TCMSP 和本地对齐也用 `tcm_`。不要另起一套前缀。
-4. 提交前在仓库根运行自检。它不访问网络，只做语法解析、64 个工具名与文档口径对齐：
+4. 提交前在仓库根运行自检。它不访问网络，只做语法解析、69 个工具名与文档口径对齐：
 
    ```bash
    python scripts/check_repo.py

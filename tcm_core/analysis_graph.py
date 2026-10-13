@@ -11,7 +11,10 @@ The canvas is warm paper with wood-colored frames. The same reading
 block — legend, retrieval chain, next-step hints, and source status —
 is written into the SVG, the HTML, and the text summary. Hints name
 tools already in the server. They are not run automatically, and they
-are not efficacy claims.
+are not efficacy claims. Two or more herbs plus a dose can name
+tcm_formula_weight. A literature pocket can also name the replay gate.
+Caller text that says 靶点表 or recorded/predicted can name
+tcm_read_target_table. An empty graph does not grow those hints.
 
 Edges record where a link was retrieved. They do not promote a
 co-occurrence count, a set overlap, or a trial listing into efficacy.
@@ -174,6 +177,13 @@ _POCKET_MARKERS = (
     "pocket residue",
     "pocket residues",
 )
+_DOSE_RE = re.compile(
+    r"剂量|克重|\bdose\b|\bdosage\b|"
+    r"(?:\d+(?:\.\d+)?|[一二三四五六七八九十半]+)\s*"
+    r"(?:毫克|微克|千克|两|钱|厘|铢|克|mg|μg|ug|kg|g)\b",
+    re.IGNORECASE,
+)
+_TARGET_TABLE_RE = re.compile(r"靶点表|predicted|recorded", re.IGNORECASE)
 _STATUS_WORD = {
     "ready": "就绪",
     "pending": "进行中",
@@ -268,6 +278,7 @@ class AnalysisGraph:
         self.genes_seed: List[str] = []
         self.herbs: List[str] = []
         self.n_genes = 0
+        self.caller_text = ""
         self._edge_ids = set()
 
     def seed_sources(self) -> None:
@@ -822,6 +833,7 @@ class AnalysisGraph:
 def build_from_session(state: dict) -> AnalysisGraph:
     graph = AnalysisGraph()
     graph.seed_sources()
+    graph.caller_text = str(state.get("goal") or "")
     graph.note_intent(
         disease=state.get("disease"),
         compounds=state.get("compounds") or [],
@@ -1097,6 +1109,17 @@ def _dock_line(graph: "AnalysisGraph") -> str:
     return "- 对接：缺失。文献未写明口袋"
 
 
+def _mentions_dose(graph: "AnalysisGraph") -> bool:
+    blobs = [graph.caller_text]
+    for node in graph.nodes.values():
+        blobs.append(str(node.get("detail") or ""))
+    return any(_DOSE_RE.search(text or "") for text in blobs)
+
+
+def _caller_mentions_target_table(graph: "AnalysisGraph") -> bool:
+    return _TARGET_TABLE_RE.search(graph.caller_text or "") is not None
+
+
 def _suggest_next(graph: "AnalysisGraph") -> List[dict]:
     """Up to three hints. Does not call tools or change scientific thresholds."""
     out: List[dict] = []
@@ -1105,9 +1128,11 @@ def _suggest_next(graph: "AnalysisGraph") -> List[dict]:
     def add(tool: str, reason: str) -> None:
         if len(out) >= 3 or not tool or tool in seen:
             return
-        if tool == "tcm_formula_analysis" and len(_nodes_kind(graph, "herb")) < 2:
+        herb_n = len(_nodes_kind(graph, "herb"))
+        if tool in {"tcm_formula_analysis", "tcm_formula_weight"} and herb_n < 2:
             return
-        if tool.startswith("dock_") and not _literature_names_pocket(graph):
+        pocket_tool = tool.startswith("dock_") or tool == "tcm_check_docking_replay"
+        if pocket_tool and not _literature_names_pocket(graph):
             return
         seen.add(tool)
         out.append({"tool": tool, "reason": reason})
@@ -1148,6 +1173,14 @@ def _suggest_next(graph: "AnalysisGraph") -> List[dict]:
             "至少两味药材已在图上，可计算成分集合重叠。集合重叠不是药效。",
         )
 
+    if (len(herbs) >= 2 and _mentions_dose(graph)
+            and graph.step_status("tcm_formula_weight") not in {"done", "skipped"}):
+        add(
+            "tcm_formula_weight",
+            "至少两味药材已在图上，调用方文本或节点详情里写了剂量。"
+            "要先点名口径，再把单条剂量换成克后合计。重量比不是疗效。",
+        )
+
     if (diseases and (genes or compounds)
             and not _nodes_kind(graph, "literature")
             and graph.step_status("tcm_literature_mine") not in {"done", "skipped"}):
@@ -1175,6 +1208,22 @@ def _suggest_next(graph: "AnalysisGraph") -> List[dict]:
         add(
             "dock_vina_docking",
             "文献写明了口袋残基。输出仍是提议的对接模型，不是已记录结合证据。",
+        )
+
+    if (_literature_names_pocket(graph)
+            and graph.step_status("tcm_check_docking_replay") not in {"done", "skipped"}):
+        add(
+            "tcm_check_docking_replay",
+            "文献写明了口袋残基。可先做离线门槛。这只是门槛，不跑对接。"
+            "通过只表示可以进入复现，结果仍是提议的对接模型。",
+        )
+
+    if (graph.entity_nodes() and _caller_mentions_target_table(graph)
+            and graph.step_status("tcm_read_target_table") not in {"done", "skipped"}):
+        add(
+            "tcm_read_target_table",
+            "调用方文本里出现靶点表或 recorded/predicted。"
+            "可按行把已记录和预测分开。预测行不并进已记录计数。",
         )
 
     if not out and not graph.entity_nodes():

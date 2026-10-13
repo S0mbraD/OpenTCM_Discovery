@@ -6,7 +6,7 @@ OpenTCM Discovery 检索中药小分子，供网络药理学和天然产物的�
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](requirements.txt)
-[![MCP tools](https://img.shields.io/badge/MCP-64%20tools-2ea44f.svg)](docs/TOOLS.md)
+[![MCP tools](https://img.shields.io/badge/MCP-67%20tools-2ea44f.svg)](docs/TOOLS.md)
 [![check](https://github.com/S0mbraD/OpenTCM_Discovery/actions/workflows/ci.yml/badge.svg)](https://github.com/S0mbraD/OpenTCM_Discovery/actions/workflows/ci.yml)
 
 Pathway search, cross-database checks, and literature-guided docking for TCM small molecules.
@@ -39,6 +39,9 @@ Pathway search, cross-database checks, and literature-guided docking for TCM sma
 | 手里已有机制表和分子库，想做可重复的加权评分 | `workflow_engine/run_server.py` |
 | 表、基因名、疾病名、剂量或 SMILES 还没整理好？ | `tcm_clean_table`、`tcm_normalize_ids`、`tcm_normalize_genes`、`tcm_normalize_disease`、`tcm_convert_dose`、`tcm_normalize_structure` |
 | 已有 TCMSP 成分行，要对上自己的名称或 InChIKey？ | `tcm_align_tcmsp` |
+| 手里有一张靶点表，要按行分开已记录和预测？ | `tcm_read_target_table` |
+| 一张方剂要按一个口径换成克并合计？ | `tcm_formula_weight` |
+| 对接复现前先检查文献标识和口袋残基？ | `tcm_check_docking_replay` |
 
 工具分工见 [docs/TOOLS.md](docs/TOOLS.md)。
 
@@ -64,7 +67,7 @@ $env:PYTHONUTF8 = "1"
 python -m pip install -r requirements-workflow.txt
 ```
 
-依赖装好之后，可以先跑两条不访问网络的检查。`python scripts/check_repo.py` 核对语法，以及文档里用反引号写出的工具名是否和代码里注册的 64 个一致。`python -m unittest discover -s tests -q` 核对统计函数、口袋解析和本地整理。这两条通过，只说明仓库本身是齐的。上游网站通不通，要另跑 `tcm_check_database_status`。
+依赖装好之后，可以先跑两条不访问网络的检查。`python scripts/check_repo.py` 核对语法，以及文档里用反引号写出的工具名是否和代码里注册的 67 个一致。`python -m unittest discover -s tests -q` 核对统计函数、口袋解析和本地整理。这两条通过，只说明仓库本身是齐的。上游网站通不通，要另跑 `tcm_check_database_status`。
 
 ## 启动
 
@@ -90,7 +93,7 @@ stdio 由客户端在需要时拉起本地进程：
 python mcp_server/unified_mcp.py --port 8002
 ```
 
-客户端地址是 `http://127.0.0.1:8002/mcp`。64 个工具都在 `unified_mcp.py`。
+客户端地址是 `http://127.0.0.1:8002/mcp`。69 个工具都在 `unified_mcp.py`。
 
 只运行 `open_tcm_discovery_mcp.py` 时，进程里只有检索一族，HTTP 默认端口是 8000，不是上面这个 8002。对接族若单独运行 `structure_docking_mcp.py`，默认端口是 8001。本地看板默认是 8765。这几个进程各用各的端口。stdio 不占端口，客户端在需要时拉起子进程，用完就退出，这是推荐接法。
 
@@ -100,7 +103,7 @@ python mcp_server/unified_mcp.py --port 8002
 python examples/basic_usage.py
 ```
 
-正常时第一行是 `tools registered: 64`。接着会打印 `tcm_check_database_status` 的一段文字。这次调用的 `refresh` 是 false，所以看到的是工具里保存的探测表。表上的 `snapshot_date` 是那张表写入的日期，不是此刻每个网站的现场状态。把 `refresh` 设为 true 才会再探一小部分端点，需要公网，大约几十秒。公网不通时，工具数仍应是 64。状态一段里会是失败或不可达，不要把它读成「这个库没有该成分」。
+正常时第一行是 `tools registered: 67`。接着会打印 `tcm_check_database_status` 的一段文字。这次调用的 `refresh` 是 false，所以看到的是工具里保存的探测表。表上的 `snapshot_date` 是那张表写入的日期，不是此刻每个网站的现场状态。把 `refresh` 设为 true 才会再探一小部分端点，需要公网，大约几十秒。公网不通时，工具数仍应是 67。状态一段里会是失败或不可达，不要把它读成「这个库没有该成分」。
 
 带参数的工具把参数放在 `params` 里：
 
@@ -176,7 +179,7 @@ MCP 检索和本地加权分是两套结果，引用时分开写。前者写数�
 
 ```
 SKILL.md                 给智能体读的使用约定
-mcp_server/              64 个工具的服务器
+mcp_server/              69 个工具的服务器
 tcm_core/                超几何检验、口袋残基和索引路径等可单测的函数
 scripts/                 可单独运行的检索、分子库、对接和出图脚本
 workflow_engine/         11 步本地评分流程和看板
@@ -202,6 +205,9 @@ examples/                最小客户端和调用样例
 - 文献共现是命中篇数。临床试验匹配是登记信息。二者用来找下一步要读的论文和要做的实验。
 - 口服生物利用度不低于 30、类药性不低于 0.18，才按 TCMSP 口径写入「活性成分」。RDKit 的 Lipinski 和 QED 另写。
 - `tcm_align_tcmsp` 只对齐调用方已经给出的成分名和 InChIKey。名称相同不是结构相同，也不是靶点或疗效。
+- `tcm_read_target_table` 只读调用方给出的靶点表。预测行不并进已记录计数，也不是疗效。
+- `tcm_formula_weight` 按点名的一个口径把各行换成克后合计。炮制只留原文。重量比不是疗效，也不是君臣佐使。
+- `tcm_check_docking_replay` 不运行对接。通过只表示可以进入复现，结果仍是提议的对接模型。夹具不是已核对的公开复合物。
 - 多候选排名是启发式排序，不是验证过的打分函数。
 
 跑不通时按这个顺序判断。先看参数是不是放进了 `params`，疾病名或成分名是不是空的。再看 `error`，或正文是否以 `Error:` 开头。在线失败时仍可能带有 `source` 和 `queried_at`，同时成分或命中列表为空。这种空表示这次没取到，不要手写成一条完整记录。TCMSP 若 `herbs` 有多行而 `ingredients` 为空，是药材名对上了多行，把 `latin_name` 设成其中一行的 `herb_en_name` 再查。缓存命中时，`queried_at` 仍是当初查询的时间。
@@ -229,7 +235,7 @@ python scripts/check_repo.py
 python -m unittest discover -s tests -v
 ```
 
-这两条命令不访问网络。第一条检查 Python 语法，并核对 64 个工具名是否与文档一致。第二条核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。
+这两条命令不访问网络。第一条检查 Python 语法，并核对 69 个工具名是否与文档一致。第二条核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。
 
 第一条失败时，先看它打印的工具名差异。常见情况是 `docs/TOOLS.md` 少了某个用反引号包住的工具名，或文档里的工具总数和代码不一致。不要为了让检查通过去改统计函数或数据源地址。第二条失败时，看断言期望的是本地夹具还是真实网站。默认测试不访问网络。在线接口变了，记进变更记录，并用 `tcm_check_database_status` 再探一次。一次超时不能写成该库已经停用。
 
@@ -242,7 +248,7 @@ python -m unittest discover -s tests -v
   title  = {OpenTCM Discovery},
   year   = {2026},
   url    = {https://github.com/S0mbraD/OpenTCM_Discovery},
-  note   = {MCP service for TCM small-molecule discovery, 64 tools}
+  note   = {MCP service for TCM small-molecule discovery, 69 tools}
 }
 ```
 

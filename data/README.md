@@ -5,6 +5,13 @@
 ## 文件
 
 - `herb_mol_index.json`（约 4.2 MB）
+- `name_aliases.json`：写得出处的一小份别名。没有出处的译名不收。方剂别名目前是空的
+
+## 名称候选
+
+`tcm_core.name_spectrum.broad_name_candidates` 读 `herbs` 里的 `chinese_name`、`pinyin`、`latin_name`。键是 SMHB 标识。它不读成分标识，那些标识没有成分名。
+
+返回的是候选列表。索引命中、别名表和字符串相近各占一行。黄连和胡黄连、甘草和炙甘草在索引里本来就是两条。生甘草不是索引里的中文名，不会并进甘草。字符串相近不是同一味药，也不是疗效。别名表里的 `licorice` 来自数据来源说明里记下的旧站英文列，不是索引字段。这个函数不进入自动检索链。
 
 ## 结构
 

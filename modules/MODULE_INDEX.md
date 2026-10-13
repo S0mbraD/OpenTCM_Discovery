@@ -42,6 +42,10 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 | 自举层 | tcm_dependency_status | install 为显式 opt-in | 依赖影响面矩阵+一键安装+内置 vina 盘点 |
 | 数据整理 | tcm_clean_table / tcm_normalize_ids / tcm_normalize_structure / tcm_normalize_genes / tcm_normalize_disease / tcm_convert_dose | 不进入自动链 | 表、标识、SMILES、基因符号、病名、克数 |
 | TCMSP 旧站 | tcm_tcmsp_search | 不进入自动链。OB/DL 只滤本页字段 | 药材行和成分行。不是疗效，也不是靶点表 |
+| 方剂克重 | tcm_formula_weight | 不进入自动链。一个口径下的克数合计 | 炮制原文和重量比。不是疗效，也不是君臣佐使 |
+| 对接复现门槛 | tcm_check_docking_replay | 不进入自动链。不运行对接 | 可以进入复现，或拒绝。结果仍是提议的对接模型 |
+| HERB 详情 | tcm_herb_detail | 不进入自动链。只 POST 跑通的 HTTP | 成分五列。靶点不是已记录证据。类药性不是 ob、dl |
+| 名称候选 | tcm_broad_names | 不进入自动链。只列本地候选 | 黄连和胡黄连、甘草和炙甘草分开。相近不是疗效 |
 
 ## 执行引擎（tcm_smart_run）行为要点
 
@@ -88,6 +92,22 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 ## 数据整理（prep_layer.py）
 
 六个工具都不访问网络，也不进入 `tcm_smart_run` 自动链。`tcm_clean_table` 收表。`tcm_normalize_ids` 只做格式和 CAS 校验位，裸数字不记成 CID。`tcm_normalize_structure` 在没有 RDKit 时不生成 InChIKey。`tcm_normalize_genes` 遇到 NF-κB、COX、VEGF、AKT 保持歧义。`tcm_normalize_disease` 只使用代码里核对过的 MeSH 子集。`tcm_convert_dose` 必须点名度量衡。重量比不是药效。
+
+## 靶点表读入（target_layer.py）
+
+`tcm_read_target_table` 不访问网络，也不进入自动链。只读调用方给出的表。`support` 只认 recorded 和 predicted。`recorded_source_count` 只数来源写明一个名称的 recorded 行。预测行单独列出。缺列和空表报错。含糊来源放进 unclassified。不内置靶点库。
+
+## 方剂克重（formula_weight_layer.py）
+
+`tcm_formula_weight` 不访问网络，也不进入自动链。口径必填。各行剂量换成克后合计，炮制只留原文。重量比不是疗效，不是暴露量，也不是君臣佐使。各套「两」仍然分开。
+
+## HERB 详情和名称候选（herb_layer.py）
+
+`tcm_herb_detail` 不进入自动链。调用方给出 HERB 编号。先 POST `http://47.92.70.12/chedi/api/`，环境失败再试一次这条 HTTP。HTTPS 只在环境失败后跳过。成分只有编号、名称、别名、分子式、SMILES。靶点页没有已记录和预测的分列，不能算已记录证据。类药性不是 ob、dl。`tcm_broad_names` 只调用已有的名称候选函数。相近不是疗效。
+
+## 对接复现门槛（docking_replay_layer.py）
+
+`tcm_check_docking_replay` 不运行对接，也不进入自动链。夹具不是已核对的公开复合物。通过检查只表示可以进入复现，结果仍是提议的对接模型。缺文献标识、缺口袋残基，或残基不是编号，就拒绝。
 
 ## 超时与后台规则
 

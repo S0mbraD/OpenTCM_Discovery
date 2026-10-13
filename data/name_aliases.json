@@ -1,0 +1,27 @@
+{
+  "note": "只收录写得出处的叫法。没有出处的译名不在这里。相近条目不是同一味药，也不是疗效。方剂别名是空的：本机索引没有方剂条目。",
+  "labels": [
+    {
+      "alias": "licorice",
+      "kind": "herb",
+      "herb_id": "SMHB00133",
+      "chinese_name": "甘草",
+      "relation": "cited_english_label",
+      "same_herb": false,
+      "source": "docs/DATA_SOURCES.md 记录的 2026-10-13 旧站表格一行是「甘草 / licorice / Gancao」。这是页面上的英文列，不是索引字段。"
+    }
+  ],
+  "distinctions": [
+    {
+      "herb_ids": ["SMHB00186", "SMHB00172"],
+      "relation": "different_index_records",
+      "source": "data/herb_mol_index.json：SMHB00186 的中文名是黄连，拉丁名是 Coptidis Rhizoma；SMHB00172 的中文名是胡黄连，拉丁名是 Picrorhizae Rhizoma，拼音字段是 Huhuangl1an。两条都保留。"
+    },
+    {
+      "herb_ids": ["SMHB00133", "SMHB00537"],
+      "relation": "different_index_records",
+      "source": "data/herb_mol_index.json：SMHB00133 的中文名是甘草，拉丁名是 Glycyrrhizae Radix Et Rhizoma；SMHB00537 的中文名是炙甘草，拉丁名在同一基原名之后另有 Praeparata Cum Melle。两条都保留。"
+    }
+  ],
+  "formulas": []
+}

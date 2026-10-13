@@ -143,4 +143,16 @@
       <question>What layout algorithm does tcm_network_figure use after removing the networkx dependency?</question>
       <answer>a built-in Fruchterman-Reingold force-directed layout implemented in pure numpy (seeded, reproducible)</answer>
    </qa_pair>
+   <qa_pair>
+      <question>A caller pastes a local target table in which berberine–TNF is recorded in HERB and HIT and predicted in BATMAN-TCM. What recorded_source_count does tcm_read_target_table return for that pair, and does the predicted row enter the count?</question>
+      <answer>2. The predicted row is listed under predicted_pairs and is not added to recorded_source_count. The count is not an online cross-database screen and not efficacy.</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What does tcm_herb_detail return for ingredients and targets, and does that page add to recorded_source_count?</question>
+      <answer>Ingredients keep id, name, alias, formula and SMILES from the HTTP detail. Targets are returned with the note that the page has no recorded-versus-predicted split, so they are not recorded evidence and are not added to tcm_read_target_table recorded_source_count. MolWt, Drug_likeness and OB_score are not ob or dl.</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Does tcm_broad_names merge 黄连 with 胡黄连, or 甘草 with 炙甘草?</question>
+      <answer>No. Each stays on its own row. A near string is not the same herb and not an efficacy claim. The tool only lists local candidates and does not enter the auto chain.</answer>
+   </qa_pair>
 </evaluation>

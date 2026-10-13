@@ -1,0 +1,15 @@
+{
+  "summary": [
+    ["Herb ID", "Herb pinyin name", "Herb Chinese name", "Herb alias name", "Herb English name", "Herb Latin name", "TCMSP"],
+    ["HERB000281", "Bai Tou Weng", "白头翁", "野丈人; 胡王使者; 白头公", "en-fixture", {"style": "i", "title": "latin-fixture"}, "23"]
+  ],
+  "herb_ingredient": [
+    ["Ingredient id", "Ingredient name", "Ingredient alias name", "Molecular formula", "Canonical smiles", "MolWt", "Drug_likeness", "OB_score"],
+    [{"link": "/chedi/ingredient/detail/fixture-a", "title": "HBIN000001"}, "fixture-a", "alias-a", "C2H6O", "CCO", "46.07", "0.55", "40"],
+    [{"link": "/chedi/ingredient/detail/fixture-b", "title": "HBIN000002"}, "fixture-b", "", "CH4O", "CO", "32.04", "0.10", "1"]
+  ],
+  "herb_target": [
+    ["Target id", "Gene symbol", "Gene alias name", "Protein name", "Type of gene", "P value", "FDR BH"],
+    [{"link": "/target/fixture", "title": "TFIX1"}, "GENE1", "alias-g", "protein-fixture", "protein-coding", 3.16895e-05, 0.00592134]
+  ]
+}

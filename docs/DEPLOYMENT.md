@@ -28,7 +28,7 @@ Vina 是可选项。在 Windows 上做对接，把官方 1.2.5 二进制放到 `
 
 将 `<仓库绝对路径>` 替换为你的克隆目录。Windows 的 JSON 里反斜杠要写成 `\\`。不要把某一台机器上的用户目录写进要提交的配置。
 
-客户端拉起子进程之后，用 `list_tools` 看数量。期望是 64。若明显少一截，多半是启动了别的入口，而不是依赖没装齐。stdio 失败时先看 Python 是否在 PATH 里，以及 `PYTHONUTF8` 有没有传进子进程。中文乱码看起来像返回坏了，其实常常是编码。
+客户端拉起子进程之后，用 `list_tools` 看数量。期望是 69。若明显少一截，多半是启动了别的入口，而不是依赖没装齐。stdio 失败时先看 Python 是否在 PATH 里，以及 `PYTHONUTF8` 有没有传进子进程。中文乱码看起来像返回坏了，其实常常是编码。
 
 ## 3. 方案 B：StreamableHTTP
 
@@ -83,7 +83,7 @@ async def go():
         async with ClientSession(r, w) as s:
             await s.initialize()
             names = [t.name for t in (await s.list_tools()).tools]
-            print("tools =", len(names))            # 期望 64
+            print("tools =", len(names))            # 期望 69
             res = await s.call_tool(
                 "tcm_check_database_status", {"params": {"refresh": False}}
             )
@@ -92,7 +92,7 @@ async def go():
 asyncio.run(go())
 ```
 
-看到 `tools = 64`，就说明统一入口接上了。数据库状态那段要再看一眼。上面的例子把 `refresh` 设成 false，返回的是工具里保存的探测表，`snapshot_date` 写着那张表的日期，不是此刻每个网站的现场结论。要看几个关键端点现在通不通，把 `refresh` 设为 true。公网不通时，工具数仍应是 64，状态里会是失败或不可达。
+看到 `tools = 69`，就说明统一入口接上了。数据库状态那段要再看一眼。上面的例子把 `refresh` 设成 false，返回的是工具里保存的探测表，`snapshot_date` 写着那张表的日期，不是此刻每个网站的现场结论。要看几个关键端点现在通不通，把 `refresh` 设为 true。公网不通时，工具数仍应是 69，状态里会是失败或不可达。
 
 ## 6. 常见问题
 
