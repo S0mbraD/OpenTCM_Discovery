@@ -1,6 +1,6 @@
 # 工具总表
 
-统一入口 `mcp_server/unified_mcp.py` 注册下面 62 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
+统一入口 `mcp_server/unified_mcp.py` 注册下面 63 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
 
 ## 智能层（8）
 
@@ -13,7 +13,7 @@
 | `tcm_cache_status` | 查看或清空只读检索缓存 |
 | `tcm_classify_structure` | 用 RDKit SMARTS 给 SMILES 做结构大类分类；无 RDKit 时退回字符串启发 |
 | `tcm_self_iterate` | 复核本地运行观察。`action=apply` 或 `reject` 只处理用户点名的 id，并只追加 `references/runtime_lessons.md` |
-| `tcm_analysis_topology` | 按会话重画分析网络和执行状态。输出 Mermaid 与 SVG |
+| `tcm_analysis_topology` | 按会话重画分析网络和执行状态。小图是圆角卡片，实体节点满 300 后改为按类别分组的球面。输出 Mermaid、SVG 和自包含 HTML |
 
 ## 检索、网络与自迭代（27）
 
@@ -108,6 +108,12 @@
 | `tcm_normalize_disease` | 把少量常见病名对到已核对的 MeSH 标题。表外病名保持 unmapped |
 | `tcm_convert_dose` | 按点名的度量衡把剂量换成克，并给出本次输入的重量比 |
 
+## TCMSP（1）
+
+| 工具 | 作用 |
+|---|---|
+| `tcm_tcmsp_search` | 读 TCMSP 旧站的药材表和成分表。`ob_dl_filter` 只筛本页的 OB、DL。不是疗效，这一页没有靶点 |
+
 ## 缓存
 
-下列 19 个工具的成功响应进入 TTL 缓存：`tcm_pubchem_lookup`、`tcm_kegg_compound`、`tcm_chembl_lookup`、`tcm_ensembl_lookup`、`tcm_search_disease_targets`、`tcm_string_ppi`、`tcm_tcmbank_search`、`tcm_ctd_gene_interactions`、`tcm_get_gene_info`、`tcm_ncbi_gene_search`、`tcm_enrichment_analysis`、`tcm_npass_search_compound`、`tcm_get_structure`、`tcm_dgidb_interactions`、`tcm_gwas_associations`、`tcm_symmap_lookup`、`tcm_kegg_disease_pathways`、`tcm_wikidata_lookup`、`tcm_uniprot_idmap`。
+下列 20 个工具的成功响应进入 TTL 缓存：`tcm_pubchem_lookup`、`tcm_kegg_compound`、`tcm_chembl_lookup`、`tcm_ensembl_lookup`、`tcm_search_disease_targets`、`tcm_string_ppi`、`tcm_tcmbank_search`、`tcm_ctd_gene_interactions`、`tcm_get_gene_info`、`tcm_ncbi_gene_search`、`tcm_enrichment_analysis`、`tcm_npass_search_compound`、`tcm_get_structure`、`tcm_dgidb_interactions`、`tcm_gwas_associations`、`tcm_symmap_lookup`、`tcm_kegg_disease_pathways`、`tcm_wikidata_lookup`、`tcm_uniprot_idmap`、`tcm_tcmsp_search`。

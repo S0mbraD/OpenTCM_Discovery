@@ -20,6 +20,7 @@
 | ClinicalTrials.gov API v2 | 试验数、分期和 NCT | 转化上下文，不是疗效 | 匹配到试验不等于该中药成分有效 |
 | Pharos | 靶点开发等级 Tclin / Tchem 等 | 数据库记录 | 只说明靶点是否已有配体或药物，不说明中药成分有效 |
 | HERB 2.0、TCMBank、NPASS | 成分或靶点检索 | 数据库记录 | HERB 的类药性不能代入 TCMSP 的 0.18 门槛 |
+| TCMSP 2.3 旧站 | `tcm_tcmsp_search` 读 `https://old.tcmsp-e.com/` 的药材表和成分表 | 数据库记录 | OB≥30、DL≥0.18 只过滤本页的 `ob`、`dl`。不是疗效。这一页没有靶点 |
 | GWAS Catalog、DGIdb、CTD、Ensembl | 基因、化学物和疾病关联 | 数据库记录 | CTD 本地压缩包只在本地打分流程里使用 |
 
 ## 论文里重要、但当前没有接成实时工具的来源
@@ -28,11 +29,45 @@
 
 | 来源 | 公开入口 | 2026 年 10 月的判断 |
 |---|---|---|
-| TCMSP | 历史上的 tcmsp-e.com / tcmspw.com | 2026-09-22 两个入口都失败。OB 和 DL 只使用你本地已有的 TCMSP 字段 |
-| ETCM 2.0 | `http://www.tcmip.cn/ETCM2/front/#/` | 网页可浏览。2026-09-22 时 `/ETCM/api/` 返回 404，所以没有接成工具 |
-| BATMAN-TCM 2.0 | `http://bionet.ncpsb.org.cn/batman-tcm/` | 论文写明有程序接口，并区分人工收录的相互作用和预测相互作用。官网教程页没有给出足够明确的 JSON 参数，当前版本不调用，以免把预测分数当成已知结合 |
-| HERB 2.0 临床试验与荟萃分析 | `http://herb.ac.cn/v2` | 适合作为本地证据表，而不是在请求里临时抓取网页。路线图把这一层列为后续的可选数据 |
+| ETCM 2.0 | `http://www.tcmip.cn/ETCM2/front/`，详情在 `:18124` | 2026-10-13 前端是 HTML。`/ETCM/api/` 仍是 404。`/home/detail/` 和 `/home/herb_chem_phy/` 返回了 JSON，字段不是 TCMSP 的 OB、DL，所以没有另做工具 |
+| BATMAN-TCM 2.0 | `http://bionet.ncpsb.org.cn/batman-tcm/` | 2026-10-13 首页超时，`index.php` 连接被关掉，HTTPS 握手失败。论文写了 API，这次没有打开可复现的 JSON 参数，不做工具 |
+| HERB 2.0 详情 | `http://herb.ac.cn/`，`POST http://47.92.70.12/chedi/api/` | 2026-10-13 首页是 HTML。`/v2` 没有连上。`detail_api` 对 `HERB000281` 返回了 JSON 正文，Content-Type 却是 `text/html`。类药性不能代替 0.18，这次不另做 HERB 工具 |
 | DisGeNET | 需要使用许可 | 不把公开页面解析当作接口 |
+
+## 2026-10-13 探测：为什么现在走 TCMSP 旧站
+
+探测时间是 2026-10-13 04:38 UTC 起，单次超时 20 秒。下面的状态是这次请求的结果，不是论文里的宣称。仓库没有下载任何全库压缩包。GitHub 上的 TCMSP-Spider 已归档，TCMSP-Exporter 是浏览器脚本，仍然指向 `www.tcmsp-e.com/tcmspsearch.php`。那个地址现在是入口页，不是旧表格。
+
+| URL | 状态 | 最终 URL | 正文 |
+|---|---|---|---|
+| `https://www.tcmsp-e.com/` | 200 | 同左 | HTML。入口页，链到旧站和 `next.tcmsp-e.com` |
+| `https://www.tcmsp-e.com/tcmsp.php` | 200 | 同左 | HTML。同一张入口页，不是旧的 PHP 搜索 |
+| `https://www.tcmsp-e.com/tcmspsearch.php` | 200 | 同左 | HTML。同一张入口页 |
+| `https://tcmsp-e.com/browse.php?qc=herbs` | 200 | 同左 | HTML。同一张入口页 |
+| `https://old.tcmsp-e.com/` | 200 | 同左 | HTML。旧版 XHTML 站点 |
+| `https://old.tcmsp-e.com/tcmsp.php` | 200 | 同左 | HTML。隐藏字段里有 token |
+| `https://old.tcmsp-e.com/tcmspsearch.php?qs=herb_all_name&q=甘草` 加当次 token | 200 | 同左 | HTML。表格里嵌着 JSON，一行药材：甘草 / licorice / Gancao |
+| 同上，`qr=licorice&qsr=herb_en_name` | 200 | 同左 | HTML。表格里嵌着 JSON，280 行成分，字段含 `MOL_ID`、`ob`、`dl` |
+| `https://tcmspw.com/` 与 `/tcmsp.php`、`/tcmspsearch.php` | 无状态码 | 无 | TLS 握手被对端提前结束 |
+| `http://tcmspw.com/` | 无状态码 | 无 | 对端关掉连接 |
+| `http://www.tcmsp-e.com/tcmsp.php` | 无状态码 | 无 | TLS 握手失败 |
+| `https://next.tcmsp-e.com/` | 200 | 同左 | HTML。产品介绍页，这次没有可复现的查询参数 |
+| `http://www.tcmip.cn/ETCM2/front/` | 200 | 同左 | HTML |
+| `https://www.tcmip.cn/ETCM2/front/` | 无状态码 | 无 | TLS 握手失败 |
+| `http://www.tcmip.cn/ETCM/api/` | 404 | 同左 | HTML |
+| `http://www.tcmip.cn:18124/home/detail/?id=黄连&type=herb` | 200 | 同左 | JSON。`code` 为 1，药名 HuangLian |
+| `POST http://www.tcmip.cn:18124/home/herb_chem_phy/`，正文 `{"id":"黄连","type":"herb","Component_Phy_Chem":["Molecular Weight"]}` | 200 | 同左 | JSON。成分名和分子量，不是 OB、DL |
+| `http://herb.ac.cn/` | 200 | 同左 | HTML |
+| `http://herb.ac.cn/v2` 与 `https://herb.ac.cn/v2` | 无状态码 | 无 | 连接被关掉，或 TLS 握手失败 |
+| `http://47.92.70.12/` | 200 | 同左 | HTML。页面标题资源是 HERB 2.0 |
+| `POST http://47.92.70.12/chedi/api/`，`func_name=detail_api`，`key_id=HERB000281` | 200 | 同左 | 正文是 JSON，`Content-Type` 为 `text/html`。含 `herb_ingredient` |
+| `http://bionet.ncpsb.org.cn/batman-tcm/` | 无状态码 | 无 | 20 秒超时 |
+| `http://bionet.ncpsb.org.cn/batman-tcm/index.php` | 无状态码 | 无 | 对端关掉连接 |
+| `https://bionet.ncpsb.org.cn/batman-tcm/` | 无状态码 | 无 | TLS 握手失败 |
+
+这次能同时给出 TCMSP 成分、`ob` 和 `dl` 的，只有旧站。`www.tcmsp-e.com` 上的 `tcmsp.php` / `tcmspsearch.php` 已经不再返回那张表。`tcmspw.com` 连不上。ETCM 和 HERB 的上述请求能复现，但它们的数字不是 TCMSP 的口服生物利用度和类药性，不能拿来当 0.18 这道门。BATMAN-TCM 这次没有返回可解析正文。所以工具只请求旧站。
+
+`tcm_tcmsp_search` 每次重新取 token。超时 20 秒。超时或 HTTP 5xx 再试一次。页面里没有表格、或请求失败时，`ingredients` 为空，不补记录。响应带 `source` 和 `queried_at`。打开 `ob_dl_filter` 时只保留本页 `ob≥30` 且 `dl≥0.18` 的行。检索结果不是疗效。成分行不是靶点收录。
 
 ## 计算层，不占用数据库名额
 

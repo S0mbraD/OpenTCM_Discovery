@@ -6,6 +6,8 @@
 
 ### Added
 
+- `tcm_tcmsp_search`：请求 TCMSP 旧站 `old.tcmsp-e.com`。2026-10-13 探测里，只有这里还能返回带 `ob`、`dl` 的成分表。`ob_dl_filter` 只筛这些字段。失败不补记录
+- 分析网络拓扑：小图改为圆角卡片（名称、详情、状态色、有向动效边）；实体节点满 300 后改为按类别分组的球面，并同时写出 `.topology.svg` 与自包含 `.topology.html`
 - 数据整理 6 个本地工具：`tcm_clean_table`、`tcm_normalize_ids`、`tcm_normalize_structure`、`tcm_normalize_genes`、`tcm_normalize_disease`、`tcm_convert_dose`。它们整理表格、标识、SMILES、基因符号、疾病名和剂量，不访问网络
 - `tcm_analysis_topology`：检索过程中维护疾病–通路–基因–成分–药材–方剂分析网络，并把数据库、文献库和本地方剂索引画进同一张可重放的拓扑图
 - `tcm_self_iterate`：每次运行结束后，连接的智能体复核本地遥测和洞察。只有用户点名的 id 会追加到 `references/runtime_lessons.md`，不改工具代码、证据门槛或数据源路由

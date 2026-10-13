@@ -4,9 +4,10 @@
 open_tcm_discovery_mcp —— 中药药物发现 MCP 服务器
 ====================================================
 
-检索、网络、富集与自迭代工具族。完整技能的 62 工具入口是同目录
+检索、网络、富集与自迭代工具族。完整技能的 63 工具入口是同目录
 unified_mcp.py（StreamableHTTP 默认 127.0.0.1:8002）。单独运行本文件
-只暴露本文件内注册的工具，默认端口 8000，不是 62 工具服务器。
+只暴露本文件内注册的工具，默认端口 8000，不是 63 工具服务器。
+TCMSP 旧站查询在 tcmsp_layer.py，不在本文件。
 
 数据源（2026-09-22 实测可用性，详见技能 references/database_availability_2026-09.md）：
     - 中药库：HERB 2.0 / TCMBank / NPASS / SymMap
@@ -15,7 +16,7 @@ unified_mcp.py（StreamableHTTP 默认 127.0.0.1:8002）。单独运行本文件
     - 生信库：UniProt REST / STRING / NCBI EUtils / Reactome / PDB / AlphaFold /
       InterPro / g:Profiler / Enrichr / JASPAR / GWAS Catalog / ClinVar / dbSNP /
       Ensembl REST（2026-09 恢复）
-    - 不可用（2026-09-22 探测）：TCMSP（502）/ ETCM 2.0（API 404，主站活）/
+    - 2026-09-22 探测：当时的 TCMSP 入口 502；2026-10-13 起成分表走 old.tcmsp-e.com（tcmsp_layer.py）。ETCM 2.0（/ETCM/api/ 404，主站活）/
       DCABM-TCM（SPA 活，API 未定位）/ DisGeNET（需 Key，公开端点回退 SPA）
 
 运行：
@@ -1512,7 +1513,7 @@ async def tcm_gwas_associations(params: GwasInput) -> str:
 # ---- 数据库可用性快照（2026-09-22 深度验证更新，refresh=True 可重探） ----
 
 _DB_STATUS_CACHE = {
-    "TCMSP": {"status": "down", "note": "502 on tcmspw.com; SSL fail on old.tcmsp-e.com (both channels dead)"},
+    "TCMSP": {"status": "partial", "note": "2026-10-13: old.tcmsp-e.com returns herb and ingredient tables (ob, dl) via tcm_tcmsp_search. tcmspw.com TLS fails. This page has no targets."},
     "HERB 2.0": {"status": "up", "note": "SPA alive; use XHR detail API"},
     "ETCM 2.0": {"status": "partial", "note": "主站 index 0.7s 活，但 /ETCM/api/ 404（API 未恢复）"},
     "SymMap": {"status": "up", "note": "nginx normal, no key needed"},

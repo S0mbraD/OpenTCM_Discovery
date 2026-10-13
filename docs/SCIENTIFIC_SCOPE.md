@@ -25,6 +25,7 @@ open-tcm-discovery 用来检索和分析中药小分子。同一次分析里可�
 | 多臂综合分、`dock_rescore` | 优先级启发式 | 经过基准验证的打分函数 |
 | 标识、基因符号、疾病名整理 | 格式检查，或本地对照表命中 | HGNC / MeSH 全库，也不是靶点已被收录 |
 | 剂量换算和方内比例 | 按声明的度量衡写成克 | 药效、暴露量或网络因果权重 |
+| TCMSP 旧站成分表，以及 OB/DL 开关 | 当次页面里的成分字段。开关只滤 `ob`、`dl` | 疗效，或其他库的类药性。这一页也不是靶点表 |
 | RDKit 规范 SMILES、InChIKey | 当前环境里 RDKit 写出的结构键 | 与 PubChem CanonicalSMILES 逐字相同的字符串 |
 
 对接图上，预测残基带 `*`，接触用虚线。有突变、竞争或直接结合实验的残基才不带星号。措辞规范见 `references/evidence_grading.md`。
@@ -39,7 +40,7 @@ open-tcm-discovery 用来检索和分析中药小分子。同一次分析里可�
 
 ## 可追溯性
 
-在线工具成功返回时保留 `source` 和 `queried_at`。19 个只读工具有本地缓存，TTL 默认 3600 秒。命中缓存时仍显示原来的查询时间。错误响应不进缓存。缓存用 `tcm_cache_status` 清空。
+在线工具成功返回时保留 `source` 和 `queried_at`。20 个只读工具有本地缓存，TTL 默认 3600 秒。命中缓存时仍显示原来的查询时间。错误响应不进缓存。缓存用 `tcm_cache_status` 清空。
 
 网络图用固定随机种子。Vina 会记下种子和 exhaustiveness。本地 DAG 把每条断言的文件或接口来源写进循证日志。
 
@@ -47,7 +48,7 @@ open-tcm-discovery 用来检索和分析中药小分子。同一次分析里可�
 
 ## 上游数据
 
-用这些数据库时，遵守它们当时的使用条款。本仓库不转售，也不镜像完整库。代码里调用过、文档里记过可用性变化的来源有：SymMap、PubChem、ChEMBL、KEGG、STRING、Open Targets、Pharos、UniProt、Wikidata、DGIdb、CTD、GWAS Catalog、NCBI、g:Profiler、ClinicalTrials.gov、TCMBank、NPASS、HERB。
+用这些数据库时，遵守它们当时的使用条款。本仓库不转售，也不镜像完整库。代码里调用过、文档里记过可用性变化的来源有：SymMap、PubChem、ChEMBL、KEGG、STRING、Open Targets、Pharos、UniProt、Wikidata、DGIdb、CTD、GWAS Catalog、NCBI、g:Profiler、ClinicalTrials.gov、TCMBank、NPASS、HERB、TCMSP 旧站。
 
 2026-09 的端点快照在 `references/database_availability_2026-09.md`。快照会过期。正式分析前用 `tcm_check_database_status` 再探一次。已经确认不能当数据通道用的，有 HPA 与 GTEx 的相关接口，以及 ADMETlab REST。GEO 只用来发现数据集，不下载表达矩阵。
 

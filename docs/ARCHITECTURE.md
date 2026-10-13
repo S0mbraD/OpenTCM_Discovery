@@ -1,12 +1,12 @@
 # 架构说明
 
-62 个工具挂在同一个 MCP 服务器上，按职责分层。下面是各层文件、两条运行链路，以及数据怎么走。
+63 个工具挂在同一个 MCP 服务器上，按职责分层。下面是各层文件、两条运行链路，以及数据怎么走。
 
 ## 1. 模块分层
 
 ```
 mcp_server/
-├── unified_mcp.py               # 统一入口。注册 unified_overview、tcm_smart_plan，并转交其余 60 个工具
+├── unified_mcp.py               # 统一入口。注册 unified_overview、tcm_smart_plan，并转交其余 61 个工具
 ├── open_tcm_discovery_mcp.py    # 检索 / 网络 / 富集 / 自迭代，27 个工具
 ├── structure_docking_mcp.py     # 对接建模，8 个工具
 ├── smart_layer.py               # 缓存、结构分类、tcm_smart_run、研究报告
@@ -18,12 +18,13 @@ mcp_server/
 ├── bootstrap_layer.py           # 依赖检查与 Vina 解析
 ├── iteration_layer.py           # 运行观察复核，只追加 runtime_lessons.md
 ├── topology_layer.py            # 分析网络重画
-└── prep_layer.py                # 表格、标识、SMILES、基因、疾病名、剂量
+├── prep_layer.py                # 表格、标识、SMILES、基因、疾病名、剂量
+└── tcmsp_layer.py               # TCMSP 旧站药材表和成分表
 ```
 
-各层文件用 `@mcp.tool` 自己注册，彼此不 import。`unified_mcp.py` 把它们加载进来，工具拷到同一个服务器，函数表交给执行引擎，在进程里直接调用。19 个只读检索工具在转交时包一层 SQLite 缓存。
+各层文件用 `@mcp.tool` 自己注册，彼此不 import。`unified_mcp.py` 把它们加载进来，工具拷到同一个服务器，函数表交给执行引擎，在进程里直接调用。20 个只读检索工具在转交时包一层 SQLite 缓存。
 
-单独运行 `open_tcm_discovery_mcp.py` 只得到检索族，HTTP 端口默认 8000。62 工具的入口是 `unified_mcp.py`，HTTP 端口默认 8002。
+单独运行 `open_tcm_discovery_mcp.py` 只得到检索族，HTTP 端口默认 8000。63 工具的入口是 `unified_mcp.py`，HTTP 端口默认 8002。
 
 ## 2. 两条运行时
 
@@ -59,7 +60,7 @@ mcp_server/
 
 ## 3. 数据流与缓存
 
-- 在线检索结果带 `source` 和 `queried_at`。19 个只读工具的响应进 `~/.tcm_mcp_state/` 下的 SQLite 缓存。命中时保留原来的 `queried_at`。错误不缓存。
+- 在线检索结果带 `source` 和 `queried_at`。20 个只读工具的响应进 `~/.tcm_mcp_state/` 下的 SQLite 缓存。命中时保留原来的 `queried_at`。错误不缓存。
 - 同一个进程里，上游连续失败会短暂熔断。例如 `tcmbank.cn` 连续失败 3 次，冷却 60 秒。熔断状态不写磁盘。进程重启后重新计数。
 - 持久化的 `insights.json` 在下次同类错误里附加提示。它不会自动停用整个数据源。要不要停用，由人看过 `tcm_analyze_runtime` 之后决定。
 - 离线索引 `data/herb_mol_index.json` 是药材和成分的标识对照，给 `tcm_formula_analysis` 用。见 [data/README.md](../data/README.md)。
@@ -78,10 +79,10 @@ mcp_server/
 
 ## 5. 质量与自迭代
 
-- 提交前运行 `python scripts/check_repo.py`。它检查语法、62 个工具名和文档口径，不访问网络。
+- 提交前运行 `python scripts/check_repo.py`。它检查语法、63 个工具名和文档口径，不访问网络。
 - 在线行为的历史记录在 `mcp_server/evaluation.xml`。新增对外行为时补可复核的观察，不把推断值写进基准。
 - 运行时遥测和人工确认的洞察写入 `~/.tcm_mcp_state/`。`tcm_self_iterate` 只在用户点名后把观察追加到 `references/runtime_lessons.md`，不改工具行为。
-- `tcm_smart_run` 每一步重画分析网络。`tcm_analysis_topology` 按会话输出 Mermaid 和 SVG，标出数据库、文献库、方剂索引和步骤状态。
+- `tcm_smart_run` 每一步重画分析网络。`tcm_analysis_topology` 按会话输出 Mermaid 和 SVG，标出数据库、文献库、方剂索引和步骤状态。小图是圆角卡片；实体节点满 300 后改为按类别分组的球面，并同时写出 SVG 和自包含 HTML。这张图只描述检索过程。
 
 ## 6. 演进路线
 

@@ -3,7 +3,7 @@
 
 Combines the retrieval/analysis tool family (27 tools) and the
 docking/modeling tool family (8 tools) with the intelligence, parallel,
-evidence, P1, P2, bootstrap, iteration, topology, and prep layers into one 62-tool server:
+evidence, P1, P2, bootstrap, iteration, topology, prep, and TCMSP layers into one 63-tool server:
 
   unified_overview  - first-contact orientation: modules, tool inventory,
                       state health, quick-start protocol
@@ -57,6 +57,7 @@ BOOTSTRAP_IMPL = BASE / "bootstrap_layer.py"
 ITERATION_IMPL = BASE / "iteration_layer.py"
 TOPOLOGY_IMPL = BASE / "topology_layer.py"
 PREP_IMPL = BASE / "prep_layer.py"
+TCMSP_IMPL = BASE / "tcmsp_layer.py"
 
 # ================= submodule loading + tool transfer =================
 
@@ -102,6 +103,7 @@ _bootstrap_mod = _load_module(BOOTSTRAP_IMPL, "tcm_unified_impl_bootstrap")
 _iteration_mod = _load_module(ITERATION_IMPL, "tcm_unified_impl_iteration")
 _topology_mod = _load_module(TOPOLOGY_IMPL, "tcm_unified_impl_topology")
 _prep_mod = _load_module(PREP_IMPL, "tcm_unified_impl_prep")
+_tcmsp_mod = _load_module(TCMSP_IMPL, "tcm_unified_impl_tcmsp")
 
 # transparent response cache on read-only retrieval tools (schema unchanged;
 # original queried_at preserved inside cached responses)
@@ -127,13 +129,15 @@ _BOOTSTRAP_TOOLS, _bootstrap_skip = _transfer_tools(_bootstrap_mod.mcp)
 _ITERATION_TOOLS, _iteration_skip = _transfer_tools(_iteration_mod.mcp)
 _TOPOLOGY_TOOLS, _topology_skip = _transfer_tools(_topology_mod.mcp)
 _PREP_TOOLS, _prep_skip = _transfer_tools(_prep_mod.mcp)
+_TCMSP_TOOLS, _tcmsp_skip = _transfer_tools(_tcmsp_mod.mcp, cache_wrap=_maybe_cache)
 
 # expose underlying fns to the execution engines (smart_layer.tcm_smart_run,
 # parallel_layer, lit_formula_layer call them directly; includes the
 # parallel/p0/p1/p2 layers so the auto-chain can drive them)
 _fn_map: Dict[str, Any] = {}
 for _src in (_tcm_mod.mcp, _dock_mod.mcp, _parallel_mod.mcp,
-             _lit_mod.mcp, _rescore_mod.mcp, _p1_mod.mcp, _p2_mod.mcp):
+             _lit_mod.mcp, _rescore_mod.mcp, _p1_mod.mcp, _p2_mod.mcp,
+             _tcmsp_mod.mcp):
     try:
         for _t in _src._tool_manager.list_tools():
             _fn_map[_t.name] = _t.fn

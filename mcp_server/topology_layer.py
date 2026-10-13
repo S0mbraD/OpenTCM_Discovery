@@ -39,7 +39,7 @@ class AnalysisTopologyInput(BaseModel):
     session_id: str = Field(..., min_length=4, max_length=80,
                             description="tcm_smart_run session id")
     write_svg: bool = Field(
-        True, description="rewrite the session SVG from the checkpoint")
+        True, description="rewrite the session SVG and self-contained HTML")
 
 
 @mcp.tool(
@@ -57,15 +57,19 @@ async def tcm_analysis_topology(params: AnalysisTopologyInput) -> str:
     when at least two herbs are already on the graph.
 
     The SVG and Mermaid views are a map of how the network was built.
-    Co-occurrence, set overlap, trial listings, and consensus counts stay
-    labelled as retrieval observations.
+    Fewer than 300 entity nodes are rounded cards. At 300 the same
+    picture becomes one sphere per kind. A self-contained HTML file
+    inlines that SVG and does not load scripts. Co-occurrence, set
+    overlap, trial listings, and consensus counts stay labelled as
+    retrieval observations.
 
     Args:
         params (AnalysisTopologyInput): session_id and whether to write
-        the SVG beside the session file.
+        the SVG and HTML beside the session file.
 
     Returns:
-        str: counts, pending tasks, a Mermaid graph, and the SVG path.
+        str: counts, the current view (卡片 or 球面), pending tasks,
+        a Mermaid graph, and the SVG and HTML paths.
     '''
     if not re.fullmatch(r"[A-Za-z0-9_-]+", params.session_id):
         return "Error: session_id 只能包含字母、数字、下划线和连字符。"
@@ -79,11 +83,16 @@ async def tcm_analysis_topology(params: AnalysisTopologyInput) -> str:
         return f"Error: {type(exc).__name__}: {exc}"
     graph = build_from_session(state)
     svg_path = path.with_name(f"{params.session_id}.topology.svg")
+    html_path = path.with_name(f"{params.session_id}.topology.html")
     if params.write_svg:
         try:
-            svg_path.write_text(graph.to_svg(), encoding="utf-8")
+            picture = graph.to_svg()
+            svg_path.write_text(picture, encoding="utf-8")
+            html_path.write_text(graph.to_html(picture), encoding="utf-8")
             state["analysis_graph"] = graph.to_dict()
             state["topology_svg"] = str(svg_path)
+            state["topology_html"] = str(html_path)
+            state["topology_view"] = graph.view_mode()
             tmp = path.with_suffix(".tmp")
             tmp.write_text(json.dumps(state, ensure_ascii=False, indent=1,
                                       default=str), encoding="utf-8")
@@ -93,6 +102,7 @@ async def tcm_analysis_topology(params: AnalysisTopologyInput) -> str:
     lines = ["# 分析网络拓扑", ""]
     lines.extend(graph.summary_lines())
     lines.append(f"- svg: `{svg_path}`")
+    lines.append(f"- html: `{html_path}`")
     lines.append("")
     lines.append("```mermaid")
     lines.append(graph.to_mermaid())

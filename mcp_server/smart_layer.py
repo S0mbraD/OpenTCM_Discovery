@@ -78,6 +78,7 @@ CACHEABLE_TOOLS = {
     "tcm_dgidb_interactions", "tcm_gwas_associations",
     "tcm_symmap_lookup", "tcm_kegg_disease_pathways",
     "tcm_wikidata_lookup", "tcm_uniprot_idmap",
+    "tcm_tcmsp_search",
 }
 
 
@@ -679,9 +680,15 @@ class _Engine:
         graph = build_from_session(self.s)
         self.s["analysis_graph"] = graph.to_dict()
         try:
-            svg_path = SESSIONS_DIR / f"{self.s['session_id']}.topology.svg"
-            svg_path.write_text(graph.to_svg(), encoding="utf-8")
+            sid = self.s["session_id"]
+            svg_path = SESSIONS_DIR / f"{sid}.topology.svg"
+            html_path = SESSIONS_DIR / f"{sid}.topology.html"
+            picture = graph.to_svg()
+            svg_path.write_text(picture, encoding="utf-8")
+            html_path.write_text(graph.to_html(picture), encoding="utf-8")
             self.s["topology_svg"] = str(svg_path)
+            self.s["topology_html"] = str(html_path)
+            self.s["topology_view"] = graph.view_mode()
         except OSError:
             pass
 
@@ -1213,6 +1220,8 @@ def _fmt_session(state: Dict, paused: bool, note: str = "") -> str:
         lines.extend(topo.summary_lines())
         if state.get("topology_svg"):
             lines.append(f"- svg: `{state['topology_svg']}`")
+        if state.get("topology_html"):
+            lines.append(f"- html: `{state['topology_html']}`")
         lines.append("- 重画这张图：`tcm_analysis_topology`。")
         lines.append("")
         lines.append("```mermaid")
@@ -1362,6 +1371,8 @@ async def tcm_report_generate(params: ReportGenerateInput) -> str:
         L.extend(topo.summary_lines())
         if s.get("topology_svg"):
             L.append(f"- svg: `{s['topology_svg']}`")
+        if s.get("topology_html"):
+            L.append(f"- html: `{s['topology_html']}`")
         L.append("- redraw with `tcm_analysis_topology`")
         L.append("")
     L.append("## Evidence grading")

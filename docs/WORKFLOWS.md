@@ -61,6 +61,8 @@ python scripts/disease_pathway_workflow.py build-index --out data
 
 每一步做完，会话里的分析网络会更新。`tcm_analysis_topology` 按 `session_id` 重画 Mermaid 和 SVG，用来看数据库、文献库、方剂索引和步骤状态。这张图是检索过程的拓扑。它不是疗效结论。
 
+节点少的时候画成圆角卡片，里面是名称和一行详情。实体节点满 300 个以后，按类别收成球面，同一类在同一个球上。旁边还会写一份不依赖外网的 HTML，方便直接打开。
+
 D5 的阈值是分诊约定，不是结合的实验判据。
 
 ### 并行工具

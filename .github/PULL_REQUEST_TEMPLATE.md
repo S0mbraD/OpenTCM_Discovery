@@ -4,7 +4,7 @@
 
 ## 行为
 
-- [ ] 工具数仍是 62，或本 PR 同步更新了 `docs/TOOLS.md` 与 `SKILL.md`
+- [ ] 工具数仍是 63，或本 PR 同步更新了 `docs/TOOLS.md` 与 `SKILL.md`
 - [ ] 在线结果仍带 `source` / `queried_at`，没有加入预置答案
 - [ ] 计算输出没有被写成实验结论
 - [ ] `python scripts/check_repo.py` 通过

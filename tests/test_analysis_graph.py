@@ -1,15 +1,21 @@
 """The analysis network grows from retrieval results and redraws itself."""
 
+import math
+import re
 import unittest
 
 from tcm_core.analysis_graph import (
     FORMULA_NOTE,
     LIT_NOTE,
     SCREEN_NOTE,
+    SPHERE_ENTITY_THRESHOLD,
     AnalysisGraph,
     build_from_session,
+    cross_kind_arcs,
+    fibonacci_sphere,
     herbs_in_text,
     layered_positions,
+    sphere_scene,
 )
 
 
@@ -125,6 +131,9 @@ class AnalysisGraphTests(unittest.TestCase):
         self.assertEqual(first, second)
         svg = graph.to_svg()
         self.assertIn("<svg", svg)
+        self.assertIn('rx="6"', svg)
+        self.assertNotIn("<circle", svg)
+        self.assertIn("Microsoft YaHei, sans-serif", svg)
         self.assertIn("A&lt;B", svg)
         self.assertNotIn("A<B", svg.split(">", 1)[-1])  # text escaped after the root tag
         mermaid = graph.to_mermaid()
@@ -168,6 +177,179 @@ class AnalysisGraphTests(unittest.TestCase):
         found = herbs_in_text("比较黄连与黄芩", rows)
         self.assertIn("黄连", found)
         self.assertIn("黄芩", found)
+
+    def test_cards_have_detail_arrows_motion_and_status_styles(self):
+        graph = AnalysisGraph()
+        graph.upsert("disease", "colitis", "ready", detail="queued")
+        graph.upsert("gene", "TNF", "done", detail="hub marker")
+        graph.upsert("compound", "berberine", "failed", detail="channel down")
+        graph.upsert("herb", "黄连", "pending", detail="waiting")
+        graph.upsert("pathway", "NOD", "skipped", detail="not run")
+        graph.upsert("formula", "成分集合", "deferred", detail="later")
+        graph.link("disease", "colitis", "gene", "TNF", "associated_with", "done")
+        graph.link("gene", "TNF", "compound", "berberine", "recorded_in", "failed")
+        graph.link("herb", "黄连", "formula", "成分集合", "contains", "pending")
+        graph.link("pathway", "NOD", "gene", "TNF", "member_of", "skipped")
+        graph.link("disease", "colitis", "pathway", "NOD", "associated_with", "ready")
+        graph.link("formula", "成分集合", "herb", "黄连", "contains", "deferred")
+        svg = graph.to_svg()
+        self.assertEqual(graph.view_mode(), "卡片")
+        self.assertIn('data-mode="card"', svg)
+        self.assertIn('rx="6"', svg)
+        self.assertIn("hub marker", svg)
+        self.assertIn("channel down", svg)
+        self.assertIn("<marker", svg)
+        self.assertIn("marker-end", svg)
+        self.assertIn("<animate", svg)
+        self.assertIn("stroke-dasharray", svg)
+        self.assertNotIn("<circle", svg)
+        colors = {}
+        for status in ("ready", "pending", "done", "failed", "skipped", "deferred"):
+            self.assertIn(f"status-{status}", svg)
+            matched = re.search(
+                rf'class="edge edge-{status}"[^>]*stroke="(#[0-9A-Fa-f]{{6}})"',
+                svg,
+            )
+            self.assertIsNotNone(matched, status)
+            colors[status] = matched.group(1).lower()
+        self.assertEqual(len(set(colors.values())), 6)
+        failed = re.search(r'<(?:line|path) class="edge edge-failed"[^>]*>', svg)
+        pending = re.search(r'<(?:line|path) class="edge edge-pending"[^>]*>', svg)
+        done = re.search(r'<(?:line|path) class="edge edge-done"[^>]*>', svg)
+        skipped = re.search(r'<(?:line|path) class="edge edge-skipped"[^>]*>', svg)
+        self.assertIsNotNone(failed)
+        self.assertIsNotNone(pending)
+        self.assertIsNotNone(done)
+        self.assertIsNotNone(skipped)
+        self.assertNotIn("stroke-dasharray", failed.group(0))
+        self.assertIn("stroke-dasharray", pending.group(0))
+        self.assertNotIn("stroke-dasharray", done.group(0))
+        self.assertNotIn("stroke-dasharray", skipped.group(0))
+        self.assertIn("edge-flow", svg)
+        page = graph.to_html(svg)
+        self.assertIn("<svg", page)
+        self.assertIn("卡片", page)
+        self.assertIn("hub marker", page)
+        self.assertNotIn("<script", page.lower())
+        self.assertNotIn("cdn", page.lower())
+        self.assertNotIn("three.js", page.lower())
+
+    def test_two_hundred_ninety_nine_entities_stay_cards(self):
+        self.assertEqual(SPHERE_ENTITY_THRESHOLD, 300)
+        graph = AnalysisGraph()
+        _put_nodes(graph, "gene", 200)
+        _put_nodes(graph, "compound", 99)
+        _put_nodes(graph, "step", 5, label="STEP-KEEP")
+        self.assertEqual(len(graph.entity_nodes()), 299)
+        self.assertEqual(graph.view_mode(), "卡片")
+        svg = graph.to_svg()
+        self.assertIn('data-mode="card"', svg)
+        self.assertIn("卡片", svg)
+        self.assertNotIn("球面", svg)
+        self.assertNotIn("sphere-group", svg)
+        self.assertIn('rx="6"', svg)
+        self.assertIn("STEP-KEEP", svg)
+
+    def test_three_hundred_entities_group_onto_spheres(self):
+        graph = AnalysisGraph()
+        _put_nodes(graph, "gene", 200)
+        _put_nodes(graph, "compound", 100)
+        graph.nodes["gene:0000"]["label"] = "A<B"
+        graph.nodes["step:kept"] = {
+            "id": "step:kept", "kind": "step", "key": "kept",
+            "label": "STEP-KEEP", "status": "done", "detail": "bar",
+            "source": "", "queried_at": "",
+        }
+        graph.edges.extend([
+            {"id": "g2c", "src": "gene:0001", "dst": "compound:0001",
+             "relation": "targets", "status": "done", "detail": ""},
+            {"id": "c2g", "src": "compound:0002", "dst": "gene:0002",
+             "relation": "found_in", "status": "pending", "detail": ""},
+            {"id": "same", "src": "gene:0003", "dst": "gene:0004",
+             "relation": "interacts_with", "status": "done", "detail": ""},
+        ])
+        self.assertEqual(len(graph.entity_nodes()), 300)
+        self.assertEqual(graph.view_mode(), "球面")
+        arcs = cross_kind_arcs(graph.entity_nodes(), graph.edges)
+        self.assertEqual(
+            [(item["src_kind"], item["dst_kind"], item["relation"]) for item in arcs],
+            [("gene", "compound", "targets"), ("compound", "gene", "found_in")],
+        )
+        scene = sphere_scene(graph.entity_nodes())
+        again = sphere_scene(list(reversed(graph.entity_nodes())))
+        self.assertEqual(scene["points"], again["points"])
+        self.assertEqual(fibonacci_sphere(300), fibonacci_sphere(300))
+        sample = fibonacci_sphere(30)[10]
+        self.assertAlmostEqual(sample[0] ** 2 + sample[1] ** 2 + sample[2] ** 2, 1.0, places=5)
+        gene_centers = {(item["cx"], item["cy"]) for item in scene["points"].values()
+                        if item["kind"] == "gene"}
+        compound_centers = {(item["cx"], item["cy"]) for item in scene["points"].values()
+                            if item["kind"] == "compound"}
+        self.assertEqual(len(gene_centers), 1)
+        self.assertEqual(len(compound_centers), 1)
+        self.assertNotEqual(gene_centers, compound_centers)
+        svg = graph.to_svg()
+        self.assertEqual(svg, graph.to_svg())
+        self.assertIn('data-mode="sphere"', svg)
+        self.assertIn("<animate", svg)
+        self.assertIn("marker-end", svg)
+        self.assertIn("A&lt;B", svg)
+        self.assertNotIn("A<B", svg.split(">", 1)[-1])
+        groups = dict(re.findall(
+            r'<g class="sphere-group" data-kind="([^"]+)"[^>]*>(.*?)</g>',
+            svg, flags=re.S))
+        self.assertEqual(set(groups), {"gene", "compound"})
+        gene_titles = re.findall(r"<title>(.*?)</title>", groups["gene"])
+        compound_titles = re.findall(r"<title>(.*?)</title>", groups["compound"])
+        self.assertTrue(any("A&lt;B" in title for title in gene_titles))
+        self.assertTrue(all("compound-" not in title for title in gene_titles))
+        self.assertTrue(all(title.startswith("compound-") for title in compound_titles))
+        self.assertNotIn("STEP-KEEP", groups["gene"])
+        self.assertNotIn("STEP-KEEP", groups["compound"])
+        self.assertIn("STEP-KEEP", svg)
+        self.assertIn("执行状态", svg)
+        self._assert_arc_runs_from_shell(svg, scene, "gene", "compound")
+        self._assert_arc_runs_from_shell(svg, scene, "compound", "gene")
+        page = graph.to_html(svg)
+        self.assertIn("球面", page)
+        self.assertIn("<svg", page)
+        self.assertNotIn("<script", page.lower())
+        self.assertNotIn("cdn", page.lower())
+
+    def _assert_arc_runs_from_shell(self, svg, scene, src_kind, dst_kind):
+        matched = re.search(
+            rf'data-from="{src_kind}" data-to="{dst_kind}"[^>]* '
+            rf'd="M ([0-9.]+) ([0-9.]+) Q [0-9.\-]+ [0-9.\-]+ ([0-9.]+) ([0-9.]+)"',
+            svg,
+        )
+        self.assertIsNotNone(matched, f"{src_kind}->{dst_kind}")
+        tag = re.search(
+            rf'<path class="edge edge-[a-z]+" data-from="{src_kind}" '
+            rf'data-to="{dst_kind}"[^>]*>',
+            svg,
+        )
+        self.assertIsNotNone(tag)
+        self.assertIn("marker-end", tag.group(0))
+        x1, y1, x2, y2 = (float(item) for item in matched.groups())
+        src = scene["centers"][src_kind]
+        dst = scene["centers"][dst_kind]
+        self.assertAlmostEqual(math.hypot(x1 - src[0], y1 - src[1]), src[2] + 2, delta=1.5)
+        self.assertAlmostEqual(math.hypot(x2 - dst[0], y2 - dst[1]), dst[2] + 2, delta=1.5)
+
+
+def _put_nodes(graph, kind, count, label=None, status="done"):
+    for index in range(count):
+        nid = f"{kind}:{index:04d}"
+        graph.nodes[nid] = {
+            "id": nid,
+            "kind": kind,
+            "key": f"{kind}-{index}",
+            "label": label or f"{kind}-{index:04d}",
+            "status": status,
+            "detail": "row",
+            "source": "",
+            "queried_at": "",
+        }
 
 
 if __name__ == "__main__":

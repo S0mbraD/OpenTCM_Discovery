@@ -34,13 +34,14 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 | M5 | dock_check_environment → dock_vina_docking | D5 亲和能、D6 回查 | pose/接触/台账 |
 | M6 | make_figure_pml.py → compose_panel.py | 证据分级 | 论文图/组合图 |
 | M7 | tcm_self_iterate；先 *_report_insight / *_analyze_runtime | hits≥2 为 strong；用户点名后才写入 | references/runtime_lessons.md |
-| 智能层 | tcm_smart_plan / tcm_smart_run / tcm_report_generate / tcm_cache_status / tcm_classify_structure / tcm_self_iterate / tcm_analysis_topology | 决策点自动分叉；缺文献口袋残基时暂停；拓扑图随步骤重画 | 会话 checkpoint/研究简报/缓存/分类/分析网络 SVG |
+| 智能层 | tcm_smart_plan / tcm_smart_run / tcm_report_generate / tcm_cache_status / tcm_classify_structure / tcm_self_iterate / tcm_analysis_topology | 决策点自动分叉；缺文献口袋残基时暂停；拓扑图随步骤重画 | 会话 checkpoint/研究简报/缓存/分类/分析网络 SVG 与 HTML |
 | 并行层 | tcm_adme_profile / tcm_network_simulation / dock_batch_screening / tcm_multi_path_run | 综合排名=优先级启发式 | 批量理化/knockout 排名/并行对接排名/多臂对比表 |
 | P0 证据配伍 | tcm_literature_mine / tcm_formula_analysis / dock_rescore / tcm_network_figure | 共现=文献计量学信号非因果；重打分=启发式 | 文献计数表/配对互补矩阵/精排表/论文网络图 |
 | P1 细胞分辨率与数据驱动 | tcm_graph_embed / tcm_scrna_channel / tcm_admet_predict | 嵌入=拓扑视图非功能验证；GEO 仅发现层；ADMET 全近似 | 靶点优先级排名/数据集表/ADMET 面板 |
 | P2 临床转化 | tcm_trials_match | 试验匹配=转化上下文非疗效证明 | 分期计数+NCT 试验表 |
 | 自举层 | tcm_dependency_status | install 为显式 opt-in | 依赖影响面矩阵+一键安装+内置 vina 盘点 |
 | 数据整理 | tcm_clean_table / tcm_normalize_ids / tcm_normalize_structure / tcm_normalize_genes / tcm_normalize_disease / tcm_convert_dose | 不进入自动链 | 表、标识、SMILES、基因符号、病名、克数 |
+| TCMSP 旧站 | tcm_tcmsp_search | 不进入自动链。OB/DL 只滤本页字段 | 药材行和成分行。不是疗效，也不是靶点表 |
 
 ## 执行引擎（tcm_smart_run）行为要点
 
@@ -48,7 +49,7 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 - 每步结果落盘 `~/.tcm_mcp_state/sessions/<id>.json`（原子写）；传 `session_id` 续跑，已完成步骤不重跑
 - 暂停不臆测：缺 `receptor_pdb` / 文献 `pocket_residues` / vina 可执行文件时明确列出 needs 并给出 resume 指引
 - 口袋残基输入兼容 `I46,I52` 与 `46,52` 两种写法（引擎自动归一化为编号）
-- 响应缓存：19 个只读检索工具透明缓存（TTL 默认 3600s，`TCM_CACHE_TTL` 可调），命中标注 age 与原始检索时间，Error 不缓存
+- 响应缓存：20 个只读检索工具透明缓存（TTL 默认 3600s，`TCM_CACHE_TTL` 可调），命中标注 age 与原始检索时间，Error 不缓存
 
 ## 并行层（parallel_layer.py）行为要点
 

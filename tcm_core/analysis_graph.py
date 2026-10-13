@@ -4,6 +4,8 @@ The graph is the herb–compound–target–pathway–disease form used in
 TCM network pharmacology, plus the libraries that supplied each edge:
 pathway databases, literature, and the local formula index. Layout and
 SVG are pure Python so an agent can redraw the picture after every step.
+Fewer than 300 entity nodes are rounded cards. At 300 the picture
+switches to one sphere per kind. The SVG and HTML do not load scripts.
 
 Edges record where a link was retrieved. They do not promote a
 co-occurrence count, a set overlap, or a trial listing into efficacy.
@@ -12,8 +14,9 @@ co-occurrence count, a set overlap, or a trial listing into efficacy.
 from __future__ import annotations
 
 import html
+import math
 import re
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 LIT_NOTE = "共现不是因果"
 FORMULA_NOTE = "集合重叠不是药效"
@@ -67,14 +70,65 @@ _MAX = {
 }
 _MAX_EDGES = 160
 
+# Figure colors for a dark research canvas. Not evidence grades.
 _STATUS_COLOR = {
-    "ready": "#3d6f99",
-    "pending": "#c47b00",
-    "done": "#1b7f4e",
-    "failed": "#a33b32",
-    "skipped": "#777777",
-    "deferred": "#6b5b95",
+    "ready": "#8eb4d0",
+    "pending": "#d7a35a",
+    "done": "#5eae86",
+    "failed": "#d07068",
+    "skipped": "#8e969e",
+    "deferred": "#a494c4",
 }
+_STATUS_PRIORITY = {
+    "failed": 5, "pending": 4, "deferred": 3, "ready": 2, "done": 1, "skipped": 0,
+}
+_KIND_FILL = {
+    "source": "#1a242e",
+    "disease": "#2a2224",
+    "pathway": "#1a2824",
+    "gene": "#1a2430",
+    "compound": "#2a261c",
+    "herb": "#1a2820",
+    "formula": "#2a241e",
+    "literature": "#241e2c",
+    "trial": "#1a2628",
+    "model": "#22242a",
+    "step": "#1a1e24",
+}
+_KIND_NEBULA = {
+    "source": ("#d5dde6", "#7f93a8"),
+    "disease": ("#e4d4d2", "#a88880"),
+    "pathway": ("#d4e4dc", "#7eaa96"),
+    "gene": ("#d4dce8", "#8090ae"),
+    "compound": ("#e6e0d0", "#aa9870"),
+    "herb": ("#d4e6d8", "#7eaa88"),
+    "formula": ("#e6d8cc", "#aa8c74"),
+    "literature": ("#ddd6e8", "#9484aa"),
+    "trial": ("#d4e2e6", "#7aa0aa"),
+    "model": ("#e0e0e4", "#94949c"),
+}
+_KIND_LABEL = {
+    "source": "来源库",
+    "disease": "疾病",
+    "pathway": "通路",
+    "gene": "基因",
+    "compound": "成分",
+    "herb": "药材",
+    "formula": "方剂集合",
+    "literature": "文献",
+    "trial": "试验",
+    "model": "对接模型",
+    "step": "步骤",
+}
+SPHERE_ENTITY_THRESHOLD = 300
+_CARD_W = 176.0
+_CARD_H = 42.0
+_COL_GAP = 56.0
+_ROW_GAP = 22.0
+_MARGIN_X = 16.0
+_HEADER_H = 92.0
+_MIN_WIDTH = 760.0
+_BG = "#121418"
 
 
 def _slug(text: str) -> str:
@@ -545,52 +599,40 @@ class AnalysisGraph:
             lines.append('  empty["分析网络尚未写入节点"]')
         return "\n".join(lines)
 
+    def view_mode(self) -> str:
+        """卡片 below 300 entity nodes, 球面 at that count. Steps do not count."""
+        if len(self.entity_nodes()) >= SPHERE_ENTITY_THRESHOLD:
+            return "球面"
+        return "卡片"
+
     def to_svg(self) -> str:
-        entities = self.entity_nodes()
-        positions = layered_positions(entities)
-        steps = self.step_nodes()
-        width = 980
-        entity_height = 80 + 28 * max((1, _column_height(entities)))
-        step_top = entity_height + 24
-        height = step_top + 70
-        parts = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
-            f'height="{height}" viewBox="0 0 {width} {height}">',
-            '<rect width="100%" height="100%" fill="#f7f4ee"/>',
-            '<text x="16" y="22" font-family="Microsoft YaHei, sans-serif" '
-            'font-size="14">分析网络拓扑：数据库、文献库与方剂索引如何连到疾病、通路、基因、成分和药材</text>',
-        ]
-        for edge in self.edges:
-            if edge["src"] not in positions or edge["dst"] not in positions:
-                continue
-            x1, y1 = positions[edge["src"]]
-            x2, y2 = positions[edge["dst"]]
-            color = "#a33b32" if edge["status"] == "failed" else "#8a8175"
-            parts.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{color}" stroke-width="1.2"/>')
-        for node in entities:
-            x, y = positions[node["id"]]
-            color = _STATUS_COLOR.get(node["status"], "#555")
-            parts.append(
-                f'<circle cx="{x}" cy="{y}" r="7" fill="{color}"/>')
-            parts.append(
-                f'<text x="{x + 10}" y="{y + 4}" font-family="Microsoft YaHei, sans-serif" '
-                f'font-size="11">{html.escape(_short(node["label"]))}</text>')
-        parts.append(
-            f'<text x="16" y="{step_top}" font-family="Microsoft YaHei, sans-serif" '
-            f'font-size="13">执行状态</text>')
-        for index, node in enumerate(steps[:12]):
-            x = 16 + (index % 6) * 155
-            y = step_top + 18 + (index // 6) * 22
-            color = _STATUS_COLOR.get(node["status"], "#555")
-            parts.append(
-                f'<rect x="{x}" y="{y}" width="10" height="10" fill="{color}"/>')
-            parts.append(
-                f'<text x="{x + 14}" y="{y + 10}" font-family="Microsoft YaHei, sans-serif" '
-                f'font-size="11">{html.escape(_short(node["label"], 22))}</text>')
-        parts.append("</svg>")
-        return "\n".join(parts)
+        if len(self.entity_nodes()) >= SPHERE_ENTITY_THRESHOLD:
+            return _svg_sphere(self)
+        return _svg_cards(self)
+
+    def to_html(self, svg: Optional[str] = None) -> str:
+        """Self-contained page. The SVG is inlined; nothing is loaded from the network."""
+        picture = self.to_svg() if svg is None else svg
+        mode = html.escape(self.view_mode())
+        note = html.escape("这张图记录检索过程里节点和库是怎样连起来的。它不是疗效结论。")
+        return (
+            "<!DOCTYPE html>\n"
+            '<html lang="zh-CN">\n'
+            "<head>\n"
+            '<meta charset="utf-8"/>\n'
+            "<title>分析网络拓扑</title>\n"
+            "<style>\n"
+            "body{margin:0;background:#121418;color:#d5dde4;"
+            'font-family:"Microsoft YaHei",sans-serif;}\n'
+            ".note{margin:12px 16px 4px;font-size:13px;color:#9aa6b2;}\n"
+            "</style>\n"
+            "</head>\n"
+            "<body>\n"
+            f'<p class="note">{note}当前视图：{mode}。</p>\n'
+            f"{picture}\n"
+            "</body>\n"
+            "</html>\n"
+        )
 
     def summary_lines(self) -> List[str]:
         counts: Dict[str, int] = {}
@@ -599,6 +641,7 @@ class AnalysisGraph:
         lines = [
             f"- 节点：{', '.join(f'{k} {v}' for k, v in sorted(counts.items())) or '尚无'}",
             f"- 边：{len(self.edges)}",
+            f"- 视图：{self.view_mode()}",
         ]
         tasks = self.pending_tasks()
         if not tasks:
@@ -625,23 +668,20 @@ def build_from_session(state: dict) -> AnalysisGraph:
 
 
 def layered_positions(nodes: List[dict]) -> Dict[str, tuple]:
-    columns: Dict[int, List[dict]] = {}
-    for node in nodes:
-        columns.setdefault(LAYERS.get(node["kind"], 9), []).append(node)
-    positions = {}
+    """Centers of the rounded cards. Empty layers close up; order follows LAYERS.
+
+    The same nodes always land on the same centers.
+    """
+    columns = _entity_columns(nodes)
+    slot = {layer: index for index, layer in enumerate(sorted(columns))}
+    positions: Dict[str, tuple] = {}
     for layer, group in columns.items():
-        group = sorted(group, key=lambda n: n["id"])
+        column = slot[layer]
         for index, node in enumerate(group):
-            positions[node["id"]] = (36 + layer * 92, 48 + index * 28)
+            x = _MARGIN_X + _CARD_W / 2 + column * (_CARD_W + _COL_GAP)
+            y = _HEADER_H + _CARD_H / 2 + index * (_CARD_H + _ROW_GAP)
+            positions[node["id"]] = (round(x, 2), round(y, 2))
     return positions
-
-
-def _column_height(nodes: List[dict]) -> int:
-    counts: Dict[int, int] = {}
-    for node in nodes:
-        layer = LAYERS.get(node["kind"], 9)
-        counts[layer] = counts.get(layer, 0) + 1
-    return max(counts.values()) if counts else 1
 
 
 def _status_rank(status: str) -> int:
@@ -665,3 +705,567 @@ def _short(text: str, limit: int = 18) -> str:
 
 def _mermaid_id(node_id: str) -> str:
     return "n_" + re.sub(r"[^0-9A-Za-z_]", "_", node_id)[:48]
+
+
+def _f(value: float) -> str:
+    return f"{float(value):.2f}"
+
+
+def _kind_name(kind: str) -> str:
+    return _KIND_LABEL.get(kind, kind or "节点")
+
+
+def _kind_token(kind: str) -> str:
+    token = re.sub(r"[^0-9A-Za-z_-]", "", kind or "")
+    return token or "kind"
+
+
+def _tip(node: dict) -> str:
+    label = str(node.get("label") or node.get("key") or "")
+    detail = str(node.get("detail") or "").strip()
+    if detail and detail != label:
+        return f"{label} — {detail}"
+    return label
+
+
+def _detail_line(node: dict) -> str:
+    detail = str(node.get("detail") or "").strip()
+    if detail:
+        return detail
+    return _kind_name(str(node.get("kind") or ""))
+
+
+def _entity_columns(nodes: Iterable[dict]) -> Dict[int, List[dict]]:
+    columns: Dict[int, List[dict]] = {}
+    for node in nodes:
+        if node.get("kind") == "step":
+            continue
+        layer = LAYERS.get(node.get("kind"), 9)
+        columns.setdefault(layer, []).append(node)
+    for layer in columns:
+        columns[layer] = sorted(columns[layer], key=lambda item: item["id"])
+    return columns
+
+
+def card_frame(nodes: Sequence[dict]) -> dict:
+    positions = layered_positions(list(nodes))
+    if not positions:
+        return {"positions": positions, "width": _MIN_WIDTH, "bottom": _HEADER_H + 28}
+    max_x = max(x for x, _ in positions.values())
+    max_y = max(y for _, y in positions.values())
+    width = max(_MIN_WIDTH, max_x + _CARD_W / 2 + _MARGIN_X)
+    bottom = max_y + _CARD_H / 2
+    return {"positions": positions, "width": width, "bottom": bottom}
+
+
+def fibonacci_sphere(count: int) -> List[tuple]:
+    """Deterministic points on the unit sphere. Same count, same coordinates."""
+    count = int(count)
+    if count <= 0:
+        return []
+    if count == 1:
+        return [(0.0, 0.0, 1.0)]
+    golden = math.pi * (3.0 - math.sqrt(5.0))
+    points = []
+    for index in range(count):
+        y = 1.0 - (2.0 * index + 1.0) / count
+        ring = math.sqrt(max(0.0, 1.0 - y * y))
+        theta = golden * index
+        x = math.cos(theta) * ring
+        z = math.sin(theta) * ring
+        points.append((round(x, 6), round(y, 6), round(z, 6)))
+    return points
+
+
+def _sphere_radius(count: int) -> float:
+    raw = 18.0 + 8.0 * math.sqrt(max(int(count), 1))
+    return round(min(120.0, max(68.0, raw)), 2)
+
+
+def _place_spheres(counts: Dict[str, int]) -> Tuple[Dict[str, tuple], float, float]:
+    if not counts:
+        return {}, _MIN_WIDTH, _HEADER_H + 28
+    kinds = sorted(counts, key=lambda kind: (LAYERS.get(kind, 50), kind))
+    radii = {kind: _sphere_radius(counts[kind]) for kind in kinds}
+    cols = 4 if len(kinds) > 4 else len(kinds)
+    gap_x, gap_y = 72.0, 56.0
+    rows = [kinds[start:start + cols] for start in range(0, len(kinds), cols)]
+    row_widths = []
+    for row in rows:
+        row_widths.append(
+            sum(radii[kind] * 2 for kind in row) + gap_x * (len(row) - 1))
+    width = max(_MIN_WIDTH, max(row_widths) + 48.0)
+    positions: Dict[str, tuple] = {}
+    y_cursor = _HEADER_H + 10.0
+    for row, row_width in zip(rows, row_widths):
+        row_r = max(radii[kind] for kind in row)
+        x_cursor = (width - row_width) / 2.0
+        for kind in row:
+            radius = radii[kind]
+            cx = round(x_cursor + radius, 2)
+            cy = round(y_cursor + row_r, 2)
+            positions[kind] = (cx, cy, radius)
+            x_cursor += radius * 2 + gap_x
+        y_cursor += row_r * 2 + gap_y
+    return positions, width, y_cursor
+
+
+def sphere_scene(nodes: Sequence[dict]) -> dict:
+    """Orthographic layout. One sphere per kind; points are deterministic."""
+    grouped: Dict[str, List[dict]] = {}
+    for node in nodes:
+        if node.get("kind") == "step":
+            continue
+        grouped.setdefault(str(node.get("kind") or "node"), []).append(node)
+    for kind in grouped:
+        grouped[kind] = sorted(grouped[kind], key=lambda item: item["id"])
+    counts = {kind: len(members) for kind, members in grouped.items()}
+    centers, width, bottom = _place_spheres(counts)
+    order = sorted(grouped, key=lambda kind: (LAYERS.get(kind, 50), kind))
+    points: Dict[str, dict] = {}
+    for kind in order:
+        cx, cy, radius = centers[kind]
+        inset = radius * 0.90
+        for node, (ux, uy, uz) in zip(grouped[kind], fibonacci_sphere(len(grouped[kind]))):
+            points[node["id"]] = {
+                "x": round(cx + ux * inset, 2),
+                "y": round(cy - uy * inset, 2),
+                "z": round(uz, 4),
+                "kind": kind,
+                "cx": cx,
+                "cy": cy,
+                "r": radius,
+            }
+    return {
+        "centers": centers,
+        "points": points,
+        "order": order,
+        "groups": grouped,
+        "width": width,
+        "bottom": bottom,
+    }
+
+
+def _dominant_status(statuses: Sequence[str]) -> str:
+    counts: Dict[str, int] = {}
+    for status in statuses:
+        key = status if status in _STATUS_COLOR else "ready"
+        counts[key] = counts.get(key, 0) + 1
+    return max(counts, key=lambda item: (counts[item], _STATUS_PRIORITY.get(item, 0)))
+
+
+def cross_kind_arcs(nodes: Sequence[dict], edges: Sequence[dict]) -> List[dict]:
+    """One directed arc per source kind, destination kind, and relation."""
+    by_id = {node["id"]: node for node in nodes if node.get("kind") != "step"}
+    buckets: Dict[tuple, List[str]] = {}
+    for edge in edges:
+        src = by_id.get(edge.get("src"))
+        dst = by_id.get(edge.get("dst"))
+        if not src or not dst or src.get("kind") == dst.get("kind"):
+            continue
+        relation = str(edge.get("relation") or "")
+        key = (str(src.get("kind")), str(dst.get("kind")), relation)
+        buckets.setdefault(key, []).append(str(edge.get("status") or "done"))
+    arcs = []
+    order = sorted(
+        buckets,
+        key=lambda item: (
+            LAYERS.get(item[0], 50), item[0],
+            LAYERS.get(item[1], 50), item[1], item[2],
+        ),
+    )
+    for src_kind, dst_kind, relation in order:
+        statuses = buckets[(src_kind, dst_kind, relation)]
+        arcs.append({
+            "src_kind": src_kind,
+            "dst_kind": dst_kind,
+            "relation": relation,
+            "count": len(statuses),
+            "status": _dominant_status(statuses),
+        })
+    return arcs
+
+
+def _svg_document(mode: str, width: float, height: float, body: List[str]) -> str:
+    w = int(math.ceil(width))
+    h = int(math.ceil(height))
+    label = "卡片" if mode == "card" else "球面"
+    aria = html.escape(f"分析网络拓扑，{label}", quote=True)
+    head = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" data-mode="{mode}" '
+        f'width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
+        f'font-family="Microsoft YaHei, sans-serif" aria-label="{aria}">'
+    )
+    return "\n".join([head, *body, "</svg>"])
+
+
+def _defs_block(extra: str = "") -> str:
+    lines = ["<defs>"]
+    for status, color in _STATUS_COLOR.items():
+        lines.append(
+            f'<marker id="arrow-{status}" viewBox="0 0 10 10" refX="8.2" refY="5" '
+            f'markerWidth="7" markerHeight="7" orient="auto">'
+            f'<path d="M 0 1.3 L 8.2 5 L 0 8.7 z" fill="{color}"/></marker>'
+        )
+    if extra:
+        lines.append(extra)
+    lines.append("</defs>")
+    return "\n".join(lines)
+
+
+def _nebula_defs(kinds: Sequence[str]) -> str:
+    parts = []
+    for kind in kinds:
+        core, mid = _KIND_NEBULA.get(kind, ("#d5dde6", "#7f93a8"))
+        token = _kind_token(kind)
+        parts.append(
+            f'<radialGradient id="nebula-{token}" cx="34%" cy="32%" r="68%">'
+            f'<stop offset="0%" stop-color="{core}" stop-opacity="0.55"/>'
+            f'<stop offset="42%" stop-color="{mid}" stop-opacity="0.20"/>'
+            f'<stop offset="100%" stop-color="{_BG}" stop-opacity="0.02"/>'
+            f'</radialGradient>'
+        )
+    return "\n".join(parts)
+
+
+def _svg_header(subtitle: str) -> List[str]:
+    parts = [
+        f'<rect width="100%" height="100%" fill="{_BG}"/>',
+        '<text x="16" y="22" font-size="15" fill="#e6edf3">分析网络拓扑</text>',
+        f'<text x="16" y="40" font-size="12" fill="#9aa6b2">{html.escape(subtitle)}</text>',
+    ]
+    x = 16
+    for status in ("ready", "pending", "done", "failed", "skipped", "deferred"):
+        color = _STATUS_COLOR[status]
+        parts.append(
+            f'<rect x="{x}" y="50" width="10" height="10" rx="2" fill="{color}"/>'
+        )
+        parts.append(
+            f'<text x="{x + 14}" y="60" font-size="11" fill="#b7c2cc">{status}</text>'
+        )
+        x += 112
+    return parts
+
+
+def _text_px(text: str, size: float) -> float:
+    width = 0.0
+    for ch in text:
+        width += size if ord(ch) > 127 else size * 0.62
+    return width
+
+
+def _fit(text: str, limit_px: float, size: float) -> str:
+    text = str(text or "")
+    if _text_px(text, size) <= limit_px:
+        return text
+    kept = ""
+    for ch in text:
+        if _text_px(kept + ch + "…", size) > limit_px:
+            break
+        kept += ch
+    return (kept or text[:1]) + "…"
+
+
+def _rounded_node(node: dict, x: float, y: float, w: float, h: float) -> str:
+    status = node.get("status") if node.get("status") in _STATUS_COLOR else "ready"
+    color = _STATUS_COLOR[status]
+    fill = _KIND_FILL.get(node.get("kind"), "#1c2228")
+    kind = _kind_token(str(node.get("kind") or ""))
+    inner = max(24.0, w - 28.0)
+    name = html.escape(_fit(node.get("label") or node.get("key") or "", inner, 12))
+    detail = html.escape(_fit(_detail_line(node), inner, 10))
+    tip = html.escape(_tip(node))
+    return (
+        f'<g class="node status-{status} kind-{kind}">'
+        f"<title>{tip}</title>"
+        f'<rect class="card" x="{_f(x)}" y="{_f(y)}" width="{_f(w)}" height="{_f(h)}" '
+        f'rx="6" fill="{fill}" stroke="{color}" stroke-width="1.25"/>'
+        f'<rect class="status-bar" x="{_f(x + 4)}" y="{_f(y + 7)}" width="3" '
+        f'height="{_f(h - 14)}" rx="1.5" fill="{color}"/>'
+        f'<text class="name" x="{_f(x + 14)}" y="{_f(y + 17)}" font-size="12" '
+        f'fill="#e6edf3">{name}</text>'
+        f'<text class="detail" x="{_f(x + 14)}" y="{_f(y + 32)}" font-size="10" '
+        f'fill="#93a0ad">{detail}</text>'
+        f"</g>"
+    )
+
+
+def _edge_svg(element: str, geom: str, status: str) -> List[str]:
+    status = status if status in _STATUS_COLOR else "ready"
+    color = _STATUS_COLOR[status]
+    arrow = f'marker-end="url(#arrow-{status})"'
+    common = (
+        f'<{element} class="edge edge-{status}" {geom} '
+        f'stroke="{color}" fill="none" stroke-linecap="round" '
+    )
+    if status == "failed":
+        return [common + f'stroke-width="1.6" {arrow}/>']
+    if status == "skipped":
+        return [common + f'stroke-width="1.15" stroke-opacity="0.55" {arrow}/>']
+    if status == "done":
+        solid = common + f'stroke-width="1.45" {arrow}/>'
+        flow = (
+            f'<{element} class="edge-flow edge-{status}" {geom} '
+            f'stroke="{color}" fill="none" stroke-linecap="round" '
+            f'stroke-width="1.45" stroke-dasharray="10 18" stroke-opacity="0.45">'
+            f'<animate attributeName="stroke-dashoffset" from="0" to="-56" '
+            f'dur="2.8s" repeatCount="indefinite"/></{element}>'
+        )
+        return [solid, flow]
+    if status == "pending":
+        return [common + (
+            f'stroke-width="1.35" stroke-dasharray="5 5" {arrow}>'
+            f'<animate attributeName="stroke-dashoffset" from="0" to="-20" '
+            f'dur="1.2s" repeatCount="indefinite"/></{element}>'
+        )]
+    if status == "deferred":
+        return [common + (
+            f'stroke-width="1.25" stroke-dasharray="2 7" {arrow}>'
+            f'<animate attributeName="stroke-dashoffset" from="0" to="-18" '
+            f'dur="2.2s" repeatCount="indefinite"/></{element}>'
+        )]
+    return [common + (
+        f'stroke-width="1.3" stroke-dasharray="9 5" {arrow}>'
+        f'<animate attributeName="stroke-dashoffset" from="0" to="-28" '
+        f'dur="1.8s" repeatCount="indefinite"/></{element}>'
+    )]
+
+
+def _port(cx: float, cy: float, tx: float, ty: float) -> tuple:
+    """Leave a card from the side that faces the other card."""
+    if abs(tx - cx) >= abs(ty - cy):
+        side = 1.0 if tx >= cx else -1.0
+        return cx + side * (_CARD_W / 2 - 1.5), cy
+    side = 1.0 if ty >= cy else -1.0
+    return cx, cy + side * (_CARD_H / 2 - 1.5)
+
+
+def _connector(x1: float, y1: float, x2: float, y2: float, slot: int) -> str:
+    dx, dy = x2 - x1, y2 - y1
+    shift = 0.0 if slot == 0 else 8.0 * ((slot + 1) // 2) * (1 if slot % 2 else -1)
+    if abs(dx) >= abs(dy):
+        y1 += shift
+        y2 += shift
+        span = max(32.0, abs(dx) * 0.45)
+        sign = 1.0 if dx >= 0 else -1.0
+        c1x, c1y = x1 + sign * span, y1
+        c2x, c2y = x2 - sign * span, y2
+    else:
+        x1 += shift
+        x2 += shift
+        bulge = 32.0 + abs(shift)
+        c1x, c1y = x1 + bulge, y1
+        c2x, c2y = x2 + bulge, y2
+    return (
+        f"M {_f(x1)} {_f(y1)} C {_f(c1x)} {_f(c1y)} "
+        f"{_f(c2x)} {_f(c2y)} {_f(x2)} {_f(y2)}"
+    )
+
+
+def _column_captions(nodes: Sequence[dict], positions: Dict[str, tuple]) -> List[str]:
+    kind_at_x: Dict[float, str] = {}
+    for node in nodes:
+        pos = positions.get(node["id"])
+        if not pos:
+            continue
+        kind_at_x.setdefault(pos[0], str(node.get("kind") or ""))
+    parts = []
+    for x, kind in sorted(kind_at_x.items()):
+        parts.append(
+            f'<text class="column-label" x="{_f(x)}" y="76" text-anchor="middle" '
+            f'font-size="11" fill="#7f8b96">{html.escape(_kind_name(kind))}</text>'
+        )
+    return parts
+
+
+def _card_edges(edges: Sequence[dict], positions: Dict[str, tuple]) -> List[str]:
+    grouped: Dict[tuple, List[dict]] = {}
+    for edge in edges:
+        src, dst = edge.get("src"), edge.get("dst")
+        if src not in positions or dst not in positions or src == dst:
+            continue
+        grouped.setdefault((src, dst), []).append(edge)
+    parts: List[str] = []
+    for key in sorted(grouped):
+        x1c, y1c = positions[key[0]]
+        x2c, y2c = positions[key[1]]
+        for index, edge in enumerate(grouped[key]):
+            x1, y1 = _port(x1c, y1c, x2c, y2c)
+            x2, y2 = _port(x2c, y2c, x1c, y1c)
+            if math.hypot(x2 - x1, y2 - y1) < 4:
+                continue
+            geom = f'd="{_connector(x1, y1, x2, y2, index)}"'
+            parts.extend(_edge_svg("path", geom, str(edge.get("status") or "done")))
+    return parts
+
+
+def _step_block(steps: Sequence[dict], top: float, width: float) -> Tuple[List[str], float]:
+    parts = [
+        f'<text x="16" y="{_f(top)}" font-size="13" fill="#d5dde4">执行状态</text>'
+    ]
+    if not steps:
+        parts.append(
+            f'<text x="16" y="{_f(top + 20)}" font-size="11" fill="#8b939c">尚无步骤</text>'
+        )
+        return parts, top + 36
+    chip_w, chip_h, gap_x, gap_y = 232.0, 42.0, 8.0, 8.0
+    cols = max(1, int((width - 32) // (chip_w + gap_x)))
+    for index, node in enumerate(steps):
+        col = index % cols
+        row = index // cols
+        x = 16 + col * (chip_w + gap_x)
+        y = top + 12 + row * (chip_h + gap_y)
+        parts.append(_rounded_node(node, x, y, chip_w, chip_h))
+    rows = (len(steps) + cols - 1) // cols
+    bottom = top + 12 + rows * (chip_h + gap_y) + 6
+    return parts, bottom
+
+
+def _svg_cards(graph: "AnalysisGraph") -> str:
+    entities = graph.entity_nodes()
+    frame = card_frame(entities)
+    parts = [_defs_block()]
+    parts.extend(_svg_header(
+        "当前是卡片。圆角矩形里是名称和详情，箭头是检索方向。这不是疗效结论。"
+    ))
+    if not entities:
+        parts.append(
+            '<text x="16" y="108" font-size="12" fill="#8b939c">分析网络尚未写入节点</text>'
+        )
+    else:
+        parts.extend(_column_captions(entities, frame["positions"]))
+    parts.extend(_card_edges(graph.edges, frame["positions"]))
+    for node in sorted(entities, key=lambda item: item["id"]):
+        pos = frame["positions"].get(node["id"])
+        if not pos:
+            continue
+        cx, cy = pos
+        parts.append(_rounded_node(
+            node, cx - _CARD_W / 2, cy - _CARD_H / 2, _CARD_W, _CARD_H,
+        ))
+    steps, step_bottom = _step_block(
+        sorted(graph.step_nodes(), key=lambda item: item["id"]),
+        frame["bottom"] + 28, frame["width"],
+    )
+    parts.extend(steps)
+    return _svg_document("card", frame["width"], step_bottom + 14, parts)
+
+
+def _rim(cx: float, cy: float, radius: float, tx: float, ty: float, gap: float = 2.0):
+    dx, dy = tx - cx, ty - cy
+    dist = math.hypot(dx, dy) or 1.0
+    reach = radius + gap
+    return cx + dx / dist * reach, cy + dy / dist * reach
+
+
+def _curve(x1, y1, x2, y2, bend: float):
+    mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+    dx, dy = x2 - x1, y2 - y1
+    dist = math.hypot(dx, dy) or 1.0
+    px, py = -dy / dist, dx / dist
+    cx, cy = mx + px * bend, my + py * bend
+    label_x = 0.25 * x1 + 0.5 * cx + 0.25 * x2
+    label_y = 0.25 * y1 + 0.5 * cy + 0.25 * y2
+    path = f"M {_f(x1)} {_f(y1)} Q {_f(cx)} {_f(cy)} {_f(x2)} {_f(y2)}"
+    return path, label_x, label_y
+
+
+def _arc_label(x: float, y: float, label: str) -> str:
+    text = html.escape(label)
+    width = _text_px(label, 11) + 14
+    return (
+        '<g class="arc-label">'
+        f'<rect x="{_f(x - width / 2)}" y="{_f(y - 11)}" width="{_f(width)}" height="16" '
+        f'rx="3" fill="{_BG}" fill-opacity="0.88"/>'
+        f'<text x="{_f(x)}" y="{_f(y)}" text-anchor="middle" font-size="11" '
+        f'fill="#d5dde4">{text}</text>'
+        "</g>"
+    )
+
+
+def _arc_parts(arcs: Sequence[dict], centers: Dict[str, tuple]) -> List[str]:
+    by_pair: Dict[tuple, List[dict]] = {}
+    for arc in arcs:
+        if arc["src_kind"] not in centers or arc["dst_kind"] not in centers:
+            continue
+        by_pair.setdefault((arc["src_kind"], arc["dst_kind"]), []).append(arc)
+    parts: List[str] = []
+    for pair in sorted(by_pair):
+        for index, arc in enumerate(by_pair[pair]):
+            src = centers[arc["src_kind"]]
+            dst = centers[arc["dst_kind"]]
+            x1, y1 = _rim(src[0], src[1], src[2], dst[0], dst[1])
+            x2, y2 = _rim(dst[0], dst[1], dst[2], src[0], src[1])
+            bend = 34 + index * 16
+            if index % 2 == 1:
+                bend = -bend
+            path, label_x, label_y = _curve(x1, y1, x2, y2, bend)
+            relation = str(arc["relation"] or "link")
+            geom = (
+                f'data-from="{html.escape(str(arc["src_kind"]), quote=True)}" '
+                f'data-to="{html.escape(str(arc["dst_kind"]), quote=True)}" '
+                f'data-relation="{html.escape(relation, quote=True)}" '
+                f'data-count="{int(arc["count"])}" d="{path}"'
+            )
+            parts.extend(_edge_svg("path", geom, str(arc["status"])))
+            parts.append(_arc_label(label_x, label_y, f"{_short(relation, 24)} · {arc['count']}"))
+    return parts
+
+
+def _sphere_group(kind: str, scene: dict) -> str:
+    members = scene["groups"][kind]
+    cx, cy, radius = scene["centers"][kind]
+    token = _kind_token(kind)
+    bits = [
+        f'<g class="sphere-group" data-kind="{html.escape(kind, quote=True)}" '
+        f'data-count="{len(members)}">',
+        (
+            f'<circle class="shell" cx="{_f(cx)}" cy="{_f(cy)}" r="{_f(radius)}" '
+            f'fill="url(#nebula-{token})" stroke="#9aabba" stroke-opacity="0.45" '
+            f'stroke-width="1.15"/>'
+        ),
+        (
+            f'<ellipse cx="{_f(cx)}" cy="{_f(cy)}" rx="{_f(radius)}" ry="{_f(radius * 0.18)}" '
+            f'fill="none" stroke="#b7c3ce" stroke-opacity="0.28"/>'
+        ),
+    ]
+    ranked = []
+    for node in members:
+        point = scene["points"][node["id"]]
+        ranked.append((point["z"], node["id"], node, point))
+    ranked.sort()
+    for _z, _nid, node, point in ranked:
+        status = node.get("status") if node.get("status") in _STATUS_COLOR else "ready"
+        depth = (point["z"] + 1.0) / 2.0
+        dot = 2.3 + depth * 1.5
+        opacity = 0.42 + depth * 0.58
+        bits.append(
+            f'<circle class="point status-{status}" cx="{_f(point["x"])}" cy="{_f(point["y"])}" '
+            f'r="{_f(dot)}" fill="{_STATUS_COLOR[status]}" fill-opacity="{opacity:.2f}">'
+            f"<title>{html.escape(_tip(node))}</title></circle>"
+        )
+    caption = html.escape(f"{_kind_name(kind)} · {len(members)}")
+    bits.append(
+        f'<text class="sphere-caption" x="{_f(cx)}" y="{_f(cy + radius + 18)}" '
+        f'text-anchor="middle" font-size="12" fill="#c5ced6">{caption}</text>'
+    )
+    bits.append("</g>")
+    return "\n".join(bits)
+
+
+def _svg_sphere(graph: "AnalysisGraph") -> str:
+    entities = graph.entity_nodes()
+    scene = sphere_scene(entities)
+    parts = [_defs_block(_nebula_defs(scene["order"]))]
+    parts.extend(_svg_header(
+        "当前是球面。实体节点满 300 后按类别分球，弧上是关系和边数。这不是疗效结论。"
+    ))
+    for kind in scene["order"]:
+        parts.append(_sphere_group(kind, scene))
+    parts.extend(_arc_parts(cross_kind_arcs(entities, graph.edges), scene["centers"]))
+    steps, step_bottom = _step_block(
+        sorted(graph.step_nodes(), key=lambda item: item["id"]),
+        scene["bottom"] + 8, scene["width"],
+    )
+    parts.extend(steps)
+    return _svg_document("sphere", scene["width"], step_bottom + 14, parts)

@@ -20,7 +20,7 @@
 1. 改动前先读 `modules/MODULE_INDEX.md` 与对应 layer 文件，确认改动点归属。
 2. 代码改动必须同时更新 `modules/MODULE_INDEX.md`（工具注册）、SKILL.md（行为描述）与 `mcp_server/evaluation.xml`（基准题，如涉及行为变化）。
 3. 新工具遵循既有前缀：检索/分析 `tcm_`，对接/结构 `dock_`。
-4. 提交前在仓库根运行自检。它不访问网络，只做语法解析、62 个工具名与文档口径对齐：
+4. 提交前在仓库根运行自检。它不访问网络，只做语法解析、63 个工具名与文档口径对齐：
 
    ```bash
    python scripts/check_repo.py

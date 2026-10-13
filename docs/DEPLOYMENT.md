@@ -79,7 +79,7 @@ async def go():
         async with ClientSession(r, w) as s:
             await s.initialize()
             names = [t.name for t in (await s.list_tools()).tools]
-            print("tools =", len(names))            # 期望 62
+            print("tools =", len(names))            # 期望 63
             res = await s.call_tool(
                 "tcm_check_database_status", {"params": {"refresh": False}}
             )
@@ -88,7 +88,7 @@ async def go():
 asyncio.run(go())
 ```
 
-看到 `tools = 62`，并且数据库状态正常返回，就说明接上了。
+看到 `tools = 63`，并且数据库状态正常返回，就说明接上了。
 
 ## 6. 常见问题
 

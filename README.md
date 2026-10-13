@@ -1,12 +1,12 @@
 # OpenTCM Discovery
 
-这个仓库做中药小分子的检索和筛选。做网络药理学和天然产物前期研究的人可以用。62 个工具放在同一个 MCP 服务里。它们负责查疾病通路，核对成分和靶点，做蛋白互作网络，估算理化性质。粘贴的表可以在本地整理标识、基因符号、疾病名、剂量和 SMILES。文献写明了口袋，再做分子对接。
+这个仓库做中药小分子的检索和筛选。做网络药理学和天然产物前期研究的人可以用。63 个工具放在同一个 MCP 服务里。它们负责查疾病通路，核对成分和靶点，做蛋白互作网络，估算理化性质。粘贴的表可以在本地整理标识、基因符号、疾病名、剂量和 SMILES。文献写明了口袋，再做分子对接。
 
 在 Cursor 里接上 MCP 之后，直接用中文说明疾病和成分就可以。命令行跑的是同一套工具。对接结果只是提出的结合模型，口袋残基要来自文献。文献共现和临床试验匹配，用来找下一步要读的论文和要做的实验。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](requirements.txt)
-[![MCP tools](https://img.shields.io/badge/MCP-62%20tools-2ea44f.svg)](docs/TOOLS.md)
+[![MCP tools](https://img.shields.io/badge/MCP-63%20tools-2ea44f.svg)](docs/TOOLS.md)
 
 一次分析一般从疾病或成分开始。先查公开数据库。再按通路基因的数量，决定画不画蛋白互作网络。然后看这个靶点或成分有没有被多个库同时收录。文献写明了结合口袋，才跑 AutoDock Vina。每条在线结果都带 `source` 和 `queried_at`。完整的科学边界见 [docs/SCIENTIFIC_SCOPE.md](docs/SCIENTIFIC_SCOPE.md)。后面要补的数据库和测试见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
@@ -30,7 +30,7 @@
 
 用法有两种。
 
-第一种走 MCP。在 Cursor 里用中文说明目标，调用这 62 个工具。
+第一种走 MCP。在 Cursor 里用中文说明目标，调用这 63 个工具。
 
 第二种走本地打分。读取你自己准备的机制表、临床药表和分子库。
 
@@ -67,7 +67,7 @@ python -m pip install -r requirements.txt
 python examples/basic_usage.py
 ```
 
-正常时会看到 `tools registered: 62`。这一步要访问公网。没有网络时，服务器仍能启动。检索工具会返回上游的报错，不会在本地编一条结果。
+正常时会看到 `tools registered: 63`。这一步要访问公网。没有网络时，服务器仍能启动。检索工具会返回上游的报错，不会在本地编一条结果。
 
 分子对接还要准备 AutoDock Vina 1.2.5 和 Meeko。可执行文件不放进 Git。放法见 [bin/README.md](bin/README.md)。没装 Vina 时，检索、网络、文献和临床试验工具照常可用。
 
@@ -158,13 +158,13 @@ flowchart TD
 
 仓库里的 `data/herb_mol_index.json` 记了 698 味药材和 25,975 个成分的对应关系，用来算药对的成分集合。数据来自 SymMap 2.0 的药材与成分关联（Wu 等，Nucleic Acids Research, 2019, 47(D1): D1110–D1117）。这里没有写好的疾病答案。字段和重建方法见 [data/README.md](data/README.md)。
 
-运行时会访问这些公开库：SymMap、PubChem、ChEMBL、KEGG、STRING、Open Targets、UniProt、NCBI、ClinicalTrials.gov、HERB、TCMBank、NPASS。每个库怎么进入、本仓库是否直接调用、哪些接口已经确认不能用，写在 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)。请遵守各数据库自己的使用条款。仓库不带这些库的全量镜像。
+运行时会访问这些公开库：SymMap、PubChem、ChEMBL、KEGG、STRING、Open Targets、UniProt、NCBI、ClinicalTrials.gov、HERB、TCMBank、NPASS、TCMSP 旧站。每个库怎么进入、本仓库是否直接调用、哪些接口已经确认不能用，写在 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)。请遵守各数据库自己的使用条款。仓库不带这些库的全量镜像。
 
 ## 仓库结构
 
 ```
 SKILL.md                 给智能体读的使用约定
-mcp_server/              62 个工具的服务器
+mcp_server/              63 个工具的服务器
 tcm_core/                超几何检验、口袋残基和索引路径等可单测的函数
 scripts/                 可单独运行的检索、分子库、对接和出图脚本
 workflow_engine/         11 步本地打分流程和看板
@@ -183,7 +183,7 @@ python scripts/check_repo.py
 python -m unittest discover -s tests -v
 ```
 
-第一条命令不访问网络。它检查 Python 语法，核对 62 个工具名是否都写进了工具总表，并拦住已经废弃的端口、工具数和本机路径。第二条命令核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。扑克牌算例：52 张牌、13 张红心、抽 5 张，至少 3 张红心的概率约为 0.0928。
+第一条命令不访问网络。它检查 Python 语法，核对 63 个工具名是否都写进了工具总表，并拦住已经废弃的端口、工具数和本机路径。第二条命令核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。扑克牌算例：52 张牌、13 张红心、抽 5 张，至少 3 张红心的概率约为 0.0928。
 
 在线行为的历史记录在 [CHANGELOG.md](CHANGELOG.md) 和 `mcp_server/evaluation.xml`。上游接口会变。正式分析前先跑 `tcm_check_database_status`。
 
@@ -194,7 +194,7 @@ python -m unittest discover -s tests -v
   title  = {OpenTCM Discovery},
   year   = {2026},
   url    = {https://github.com/S0mbraD/OpenTCM_Discovery},
-  note   = {MCP service for TCM small-molecule discovery, 62 tools}
+  note   = {MCP service for TCM small-molecule discovery, 63 tools}
 }
 ```
 
