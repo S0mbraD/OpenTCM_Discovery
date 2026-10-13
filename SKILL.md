@@ -57,6 +57,8 @@ MCP 里一共 63 个工具。检索分析 27 个，对接建模 8 个，智能�
 
 ## MCP 服务器
 
+任意支持 MCP 的客户端都可以接。推荐 stdio。需要常驻进程时用 Streamable HTTP，默认端口 8002。Cursor 只是例子之一。
+
 ```bash
 python -m pip install -r requirements.txt   # 安装 requirements.txt 里的 Python 依赖
 

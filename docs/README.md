@@ -10,7 +10,7 @@
 | [工作流](WORKFLOWS.md) | 选择 MCP 深链、并行工具，还是本地 DAG |
 | [架构](ARCHITECTURE.md) | 改服务器分层、缓存或步号 |
 | [工具总表](TOOLS.md) | 查 63 个工具各自做什么 |
-| [部署](DEPLOYMENT.md) | 把服务器接到 Cursor 或其他 MCP 客户端 |
+| [部署](DEPLOYMENT.md) | 把服务器接到支持 MCP 的客户端 |
 | [模块索引](../modules/MODULE_INDEX.md) | 看 D1–D6 和每一层的实现要点 |
 | [证据分级](../references/evidence_grading.md) | 写图注和残基标注 |
 | [数据索引](../data/README.md) | 使用或重建 `herb_mol_index.json` |

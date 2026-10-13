@@ -1,6 +1,6 @@
 # 部署说明
 
-MCP 有两种接法。stdio 由客户端在需要时拉起一个本地子进程。Streamable HTTP 是常驻服务。下面以 TeleAgent 为例，其他 MCP 客户端同样接。
+任意支持 MCP 的客户端都可以接。stdio 由客户端在需要时拉起一个本地子进程。Streamable HTTP 是常驻服务。Cursor 的配置文件只是例子之一，其他客户端同样用这两种接法。
 
 ## 1. 准备环境
 
