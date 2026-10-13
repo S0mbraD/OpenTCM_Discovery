@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Repository consistency check. No network, no third-party imports.
 
-Verifies Python syntax, the 56 MCP tool registrations, and that user-facing
+Verifies Python syntax, the 62 MCP tool registrations, and that user-facing
 docs do not revive retired counts, ports, or machine-local paths.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MCP = ROOT / "mcp_server"
-EXPECTED = 56
+EXPECTED = 62
 
 TOOL_RE = re.compile(
     r'@mcp\.tool\((?:(?!@mcp\.tool).){0,800}?name\s*=\s*"([^"]+)"',
@@ -75,8 +75,10 @@ def check_tools() -> list[str]:
     if missing:
         errors.append("docs/TOOLS.md missing: " + ", ".join(missing))
     skill = _read(ROOT / "SKILL.md")
-    if "56" not in skill.split("---", 2)[2]:
-        errors.append("SKILL.md body does not mention 56 tools")
+    if "62" not in skill.split("---", 2)[2]:
+        errors.append("SKILL.md body does not mention 62 tools")
+    if "prep_layer.py" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load prep_layer.py")
     if "tcm_self_iterate" not in _read(MCP / "unified_mcp.py"):
         errors.append("unified_mcp.py does not load tcm_self_iterate")
     if "tcm_analysis_topology" not in _read(MCP / "unified_mcp.py"):

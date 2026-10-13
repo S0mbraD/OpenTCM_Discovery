@@ -1,6 +1,6 @@
 # 部署说明
 
-本仓库提供两种 MCP 部署方式：stdio（本地子进程，随客户端按需拉起）与 StreamableHTTP（常驻服务）。以下以接入 TeleAgent 为例，其他支持 MCP 的客户端流程一致。
+MCP 有两种接法。stdio 由客户端在需要时拉起一个本地子进程。Streamable HTTP 是常驻服务。下面以 TeleAgent 为例，其他 MCP 客户端同样接。
 
 ## 1. 准备环境
 
@@ -8,11 +8,11 @@
 pip install -r requirements.txt
 ```
 
-Vina 是可选项。Windows 对接把官方 1.2.5 二进制放到 `bin/vina.exe`，或设置 `VINA_EXE`。放置方式见 [bin/README.md](../bin/README.md)。没有 Vina 时，检索、网络、文献和试验工具仍可使用；对接分支会暂停并说明缺口。
+Vina 是可选项。在 Windows 上做对接，把官方 1.2.5 二进制放到 `bin/vina.exe`，或设置 `VINA_EXE`。放法见 [bin/README.md](../bin/README.md)。没装 Vina 时，检索、网络、文献和试验工具仍可使用。对接那一支会暂停，并说明缺什么。
 
 ## 2. 方案 A：stdio（推荐）
 
-无需常驻进程，客户端每次会话拉起一次子进程。配置 JSON：
+不用单独起服务。客户端每次会话拉起一个子进程。配置如下：
 
 ```json
 {
@@ -30,7 +30,7 @@ Vina 是可选项。Windows 对接把官方 1.2.5 二进制放到 `bin/vina.exe`
 
 ## 3. 方案 B：StreamableHTTP
 
-统一入口的默认端口是 **8002**，只绑定 `127.0.0.1`。不要改用 `open_tcm_discovery_mcp.py`：那个文件单独运行时只有检索族，并且自带默认端口 8000。
+统一入口的默认端口是 **8002**，只绑定 `127.0.0.1`。完整服务请跑 `unified_mcp.py`。`open_tcm_discovery_mcp.py` 单独运行时只有检索工具，端口默认是 8000。
 
 ```powershell
 $env:PYTHONUTF8 = "1"
@@ -49,7 +49,7 @@ python <仓库绝对路径>\mcp_server\unified_mcp.py --port 8002
 }
 ```
 
-服务默认只绑定回环地址；对外暴露时自行处理鉴权与防火墙。
+服务只绑在本机回环上。如果要给其他机器访问，自己处理鉴权和防火墙。
 
 ## 4. 环境变量
 
@@ -79,7 +79,7 @@ async def go():
         async with ClientSession(r, w) as s:
             await s.initialize()
             names = [t.name for t in (await s.list_tools()).tools]
-            print("tools =", len(names))            # 期望 56
+            print("tools =", len(names))            # 期望 62
             res = await s.call_tool(
                 "tcm_check_database_status", {"params": {"refresh": False}}
             )
@@ -88,7 +88,7 @@ async def go():
 asyncio.run(go())
 ```
 
-输出 `tools = 56` 且数据库状态正常返回即接入成功。
+看到 `tools = 62`，并且数据库状态正常返回，就说明接上了。
 
 ## 6. 常见问题
 

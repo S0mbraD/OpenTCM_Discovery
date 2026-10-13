@@ -40,6 +40,7 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 | P1 细胞分辨率与数据驱动 | tcm_graph_embed / tcm_scrna_channel / tcm_admet_predict | 嵌入=拓扑视图非功能验证；GEO 仅发现层；ADMET 全近似 | 靶点优先级排名/数据集表/ADMET 面板 |
 | P2 临床转化 | tcm_trials_match | 试验匹配=转化上下文非疗效证明 | 分期计数+NCT 试验表 |
 | 自举层 | tcm_dependency_status | install 为显式 opt-in | 依赖影响面矩阵+一键安装+内置 vina 盘点 |
+| 数据整理 | tcm_clean_table / tcm_normalize_ids / tcm_normalize_structure / tcm_normalize_genes / tcm_normalize_disease / tcm_convert_dose | 不进入自动链 | 表、标识、SMILES、基因符号、病名、克数 |
 
 ## 执行引擎（tcm_smart_run）行为要点
 
@@ -82,6 +83,10 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 - **网络图去 networkx 化**：自研 Fruchterman-Reingold 力导向布局（纯 numpy，固定 seed 可复现），networkx 变为可选依赖
 - **tcm_smart_run 自动链扩展**：M1→M3→M2 之后新增 5.1 ADMET / 5.2 文献共现 / 5.3 临床试验三步（float 步号保证 resume 不重跑）；goal 文本中的常见成分名（27 个白名单）自动提取为 compounds
 - **tcm_smart_plan 词表升级**：新增文献/试验/配伍/ADMET/单细胞/图嵌入/敲除模拟七组中英关键词，全部新工具可被自然语言路由
+
+## 数据整理（prep_layer.py）
+
+六个工具都不访问网络，也不进入 `tcm_smart_run` 自动链。`tcm_clean_table` 收表。`tcm_normalize_ids` 只做格式和 CAS 校验位，裸数字不记成 CID。`tcm_normalize_structure` 在没有 RDKit 时不生成 InChIKey。`tcm_normalize_genes` 遇到 NF-κB、COX、VEGF、AKT 保持歧义。`tcm_normalize_disease` 只使用代码里核对过的 MeSH 子集。`tcm_convert_dose` 必须点名度量衡。重量比不是药效。
 
 ## 超时与后台规则
 

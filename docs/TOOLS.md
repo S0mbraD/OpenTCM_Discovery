@@ -1,6 +1,6 @@
 # 工具总表
 
-统一入口 `mcp_server/unified_mcp.py` 注册下面 56 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
+统一入口 `mcp_server/unified_mcp.py` 注册下面 62 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
 
 ## 智能层（8）
 
@@ -94,6 +94,19 @@
 | 工具 | 作用 |
 |---|---|
 | `tcm_dependency_status` | Python 依赖、命令行工具和 Vina 解析结果。`action=install` 才会安装 |
+
+## 数据整理（6）
+
+这些工具在本地运行，不访问网络。整理结果用来准备下一步检索。别名、MeSH 对照和剂量比例都不是靶点收录，也不是疗效。
+
+| 工具 | 作用 |
+|---|---|
+| `tcm_clean_table` | 把粘贴的表收成表头和行。空行去掉。列数不一致就报错 |
+| `tcm_normalize_ids` | 认出 CID、CAS、InChIKey、UniProt、Ensembl。CAS 核对校验位。裸数字不会当成 CID |
+| `tcm_normalize_structure` | 检查 SMILES。有 RDKit 时给出规范 SMILES 和 InChIKey；没有则只做字符检查并写明 |
+| `tcm_normalize_genes` | 把 TNF-α、COX-2、IL-8 等常见写法收成一个 HGNC 符号。家族名保持歧义 |
+| `tcm_normalize_disease` | 把少量常见病名对到已核对的 MeSH 标题。表外病名保持 unmapped |
+| `tcm_convert_dose` | 按点名的度量衡把剂量换成克，并给出本次输入的重量比 |
 
 ## 缓存
 

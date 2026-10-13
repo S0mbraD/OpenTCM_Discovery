@@ -6,6 +6,7 @@
 
 ### Added
 
+- 数据整理 6 个本地工具：`tcm_clean_table`、`tcm_normalize_ids`、`tcm_normalize_structure`、`tcm_normalize_genes`、`tcm_normalize_disease`、`tcm_convert_dose`。它们整理表格、标识、SMILES、基因符号、疾病名和剂量，不访问网络
 - `tcm_analysis_topology`：检索过程中维护疾病–通路–基因–成分–药材–方剂分析网络，并把数据库、文献库和本地方剂索引画进同一张可重放的拓扑图
 - `tcm_self_iterate`：每次运行结束后，连接的智能体复核本地遥测和洞察。只有用户点名的 id 会追加到 `references/runtime_lessons.md`，不改工具代码、证据门槛或数据源路由
 - 主页改为完整的中文项目介绍，并补充数据来源说明 `docs/DATA_SOURCES.md` 与技术路线 `docs/ROADMAP.md`

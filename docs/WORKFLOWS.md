@@ -1,6 +1,6 @@
 # 工作流
 
-本仓库有两条互不调用的计算路径。选错入口，会把在线检索和本地打分混成一条证据。
+这个仓库有两条计算路径，互相不调用。在线检索和本地打分不要混成一条证据。
 
 ## 1. MCP 在线深链
 
@@ -10,7 +10,7 @@
 python mcp_server/unified_mcp.py --stdio
 ```
 
-Agent 侧的顺序：
+Agent 按这个顺序调用：
 
 1. `unified_overview`
 2. `tcm_smart_plan`，得到步骤表和 D1–D6
@@ -33,7 +33,7 @@ Agent 侧的顺序：
 | 5.3 | 有疾病和基因 | `tcm_trials_match` |
 | 6–10 | 受体 PDB、文献口袋、配体、Vina 都齐全 | 环境检查、拉结构、`dock_vina_docking`、`dock_analyze_contacts` |
 
-缺口袋或 Vina 时状态为 `paused`。用同一个 `session_id` 加上 `docking_inputs` 续跑，已完成步不重跑。口袋残基接受 `46,52` 或 `I46,I52`，引擎只保留数字。残基必须来自文献，示例文件里的占位符不能直接拿去对接。
+缺口袋或 Vina 时，状态是 `paused`。用同一个 `session_id`，加上 `docking_inputs` 续跑。已完成的步骤不重跑。口袋残基可以写 `46,52`，也可以写 `I46,I52`。引擎只保留数字。残基必须来自文献。示例文件里的占位符不能直接拿去对接。
 
 `depth=full` 额外写入延后命令，不在这次调用里执行：
 
@@ -59,11 +59,11 @@ python scripts/disease_pathway_workflow.py build-index --out data
 | D6 | 预测残基回查 UniProt 或文献之后，才能写成关键残基 |
 | D7 | 少于两味药材时不计算方剂集合重叠；索引节点仍留在分析网络上 |
 
-每一步完成后，会话里的分析网络会更新。`tcm_analysis_topology` 按 `session_id` 重画 Mermaid 和 SVG，用来看数据库、文献库、方剂索引和步骤状态。图是检索过程的拓扑，不是疗效结论。
+每一步做完，会话里的分析网络会更新。`tcm_analysis_topology` 按 `session_id` 重画 Mermaid 和 SVG，用来看数据库、文献库、方剂索引和步骤状态。这张图是检索过程的拓扑。它不是疗效结论。
 
 D5 的阈值是分诊约定，不是结合的实验判据。
 
-### 并行，而不是深链
+### 并行工具
 
 | 目标 | 工具 |
 |---|---|
@@ -85,9 +85,9 @@ copy workflow_engine\config.example.yaml workflow_engine\config.yaml
 python workflow_engine/run_server.py
 ```
 
-`config.yaml` 已被 `.gitignore` 忽略。疾病段缺省时行为等价于溃疡性结肠炎（MeSH D003093，MONDO:0005101）。
+`config.yaml` 在 `.gitignore` 里，不会提交。疾病段不填时，行为与溃疡性结肠炎相同（MeSH D003093，MONDO:0005101）。
 
-看板默认端口 8765，与 MCP 的 8002 无关。步骤：
+看板默认端口 8765，和 MCP 的 8002 不是一回事。步骤：
 
 | 步骤 | 内容 |
 |---|---|

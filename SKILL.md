@@ -1,29 +1,33 @@
 ---
 name: open-tcm-discovery
-description: 'Unified TCM drug-discovery skill: disease-first screening (disease to KEGG/SymMap pathways, candidate herbs, OB-filtered ingredients, hypergeometric FDR), cross-database evidence screening (PubChem, ChEMBL, SymMap, STRING, Open Targets, Pharos), PPI network and hub analysis, dual-engine enrichment consensus, Wikidata/UniProt ID bridging, molecular library building with QC and dedup, AutoDock Vina docking, contact and H-bond analysis, geometric PPI modeling, PyMOL publication figures, runtime self-iteration. One 56-tool MCP server: planner, execution engine (auto-chain incl. ADMET/literature/trials), parallel layer, evidence expansion (PubMed, herb-pair, re-score, figures), P1 (node2vec, GEO scRNA, ADMET), P2 (trials matching), bootstrap (dependency check; optional bin/vina.exe). Use for TCM, 中药, targets, pathways, PPI networks, enrichment, docking, Vina, pocket, ulcerative colitis or any disease research, network pharmacology, evidence-graded in-silico modeling.'
-name_cn: 中药药物发现统一技能（检索-分析-对接-自迭代-自主执行-并行多路）
-description_cn: 疾病优先检索（疾病→通路→药材→OB成分→超几何FDR）、多库交叉证据筛选、PPI网络hub分析、双引擎富集共识、Wikidata/UniProt ID桥接、分子库构建（QC+去重）、Vina对接、接触残基分析、几何PPI建模、PyMOL论文图、运行时自迭代；单MCP 56工具：意图路由+动态规划+自主执行引擎（断点会话/响应缓存/结构分类器/报告生成）+并行层+证据与出图+P1/P2+依赖自举，Agent 凭自然语言目标即可自主串联在线深链；30–60分钟药材抓取由脚本另行执行
+description: 'Unified TCM drug-discovery skill: disease-first screening (disease to KEGG/SymMap pathways, candidate herbs, OB-filtered ingredients, hypergeometric FDR), cross-database evidence screening (PubChem, ChEMBL, SymMap, STRING, Open Targets, Pharos), PPI network and hub analysis, dual-engine enrichment consensus, Wikidata/UniProt ID bridging, molecular library building with QC and dedup, AutoDock Vina docking, contact and H-bond analysis, geometric PPI modeling, PyMOL publication figures, runtime self-iteration, local cleanup of tables, identifiers, SMILES, gene symbols, disease names, and doses. One 62-tool MCP server: planner, execution engine (auto-chain incl. ADMET/literature/trials), parallel layer, evidence expansion (PubMed, herb-pair, re-score, figures), P1 (node2vec, GEO scRNA, ADMET), P2 (trials matching), bootstrap (dependency check; optional bin/vina.exe), prep layer. Use for TCM, 中药, targets, pathways, PPI networks, enrichment, docking, Vina, pocket, ulcerative colitis or any disease research, network pharmacology, evidence-graded in-silico modeling.'
+name_cn: "中药小分子检索、通路筛选与对接"
+description_cn: "中药小分子的检索和筛选。从疾病查通路、药材和 OB 成分，再做超几何 FDR。多库交叉核对靶点。PPI 网络、hub 和双引擎富集。Wikidata、UniProt 标识互转。分子库 QC 和去重。Vina 对接、接触残基、几何 PPI、PyMOL 论文图。运行时自迭代。表格、标识、SMILES、基因符号、疾病名和剂量可以在本地整理。62 个工具在同一个 MCP 服务里，包括规划、执行、断点续跑、缓存、结构分类、报告、并行比较、文献出图、P1、P2、依赖检查和数据整理。用中文说明疾病和成分，就能把在线步骤串起来。药材抓取要 30–60 分钟，由脚本另跑。depth=full 只登记命令。"
 ---
 
-# 中药药物发现统一技能（TCM Drug Discovery · Unified）
+# 中药小分子检索与对接
 
-> 一个技能覆盖「疾病检索 → 交叉证据 → 网络富集 → 分子库 → 对接建模 → 论文图 → 自迭代」。
-> 56 个 MCP 工具（检索分析 27 + 对接建模 8 + 智能层 8 + 并行层 4 + 证据与出图 4 + P1 3 + P2 1 + 自举 1），另有 20 个脚本、11 步本地 DAG 和 15 份参考文档。工具名录见 `docs/TOOLS.md`。
-> 智能层规划分析网络，并自动执行在线深链。30–60 分钟的药材成分抓取由 `scripts/disease_pathway_workflow.py` 另行运行，`depth=full` 时引擎只登记为延后步骤 D3。
+这个技能做中药小分子的检索、筛选和对接。顺序是：疾病检索，多库核对，网络和富集，分子库，对接，论文图，运行之后的自迭代。
 
-## 自主使用协议（Agent 第一动作）
+MCP 里一共 62 个工具。检索分析 27 个，对接建模 8 个，智能层 8 个，并行层 4 个，证据与出图 4 个，P1 有 3 个，P2 有 1 个，依赖自举 1 个，数据整理 6 个。另外有 20 个脚本、11 步本地 DAG、15 份参考文档。工具名录见 `docs/TOOLS.md`。
 
-1. **定向**：`unified_overview` —— 一览模块、工具、状态健康、本协议
-2. **规划**：`tcm_smart_plan`（goal 或 disease/compounds/genes 字段）—— 得到带决策点（D1-D6）的动态分析网络
-3. **执行（深度）**：`tcm_smart_run(goal=...)` —— 单目标在线深链（M1 通路 → D1 分支后的 M3 网络/富集 → M2 交叉证据 → P1 ADMET → P0 文献共现 → P2 临床试验 → 前提齐全才进入 M5 对接）。`depth=full` 不在本工具内跑四步药材脚本，只把命令写入延后步骤 D3。缺文献口袋残基或 Vina 时暂停并给出续跑参数，不臆测。`session_id` 续跑时已完成步骤不重跑。Vina 解析顺序：参数 > `VINA_EXE` > `bin/vina.exe` > PATH
-4. **执行（广度/并行）**：`tcm_multi_path_run(compounds=[...])` —— 多候选各自成臂并行跑完整链（共识→ADME→可选对接），横向对比表+综合排名；多配体对单一受体用 `dock_batch_screening`（并行批量 Vina+ADME 预过滤+排名）；靶点模块脆弱性用 `tcm_network_simulation`（knockout 扫描+蒙特卡洛对照+z-score）
-5. **报告**：`tcm_report_generate(session_id=...)` —— 生成导师可审阅的 Markdown 研究简报（时间线/逐步结果/决策日志/证据分级声明/全量溯源）；论文证据链补 `tcm_literature_mine`（文献共现计数）与 `tcm_network_figure`（网络图）
-6. **适应**：在每个决策点按结果分叉（hub 数量定富集、共识分定对接、亲和能定后续、复现红旗回查）
-7. **迭代**：会话结束前 `tcm_analyze_runtime` + `dock_analyze_runtime`；新发现 → `tcm_report_insight` / `dock_report_insight`
+智能层负责出计划，并执行在线步骤。抓药材成分要 30–60 分钟，用 `scripts/disease_pathway_workflow.py` 另跑。`depth=full` 时，引擎只把这条命令登记为延后步骤 D3，不在同一次请求里抓取。
 
-**参数约定**：所有带参工具用 `{"params": {...}}` 嵌套传递。
+## 先做这几步
 
-## 意图路由表（说什么 → 走哪条链）
+1. **看总览**。调用 `unified_overview`，看模块、工具和依赖是否正常，并读本文件的约定。
+2. **出计划**。调用 `tcm_smart_plan`。可以传 goal，也可以传 disease、compounds、genes。计划里带决策点 D1–D6。
+3. **按深度执行**。调用 `tcm_smart_run(goal=...)`。在线链是：M1 通路；D1 分支之后做 M3 网络或富集；M2 多库核对；P1 ADMET；P0 文献共现；P2 临床试验。文献口袋和 Vina 都齐了，才进入 M5 对接。`depth=full` 不在这次调用里跑四步药材脚本，只把命令写入延后步骤 D3。缺文献口袋残基或 Vina 时暂停，并写出续跑参数。不要猜口袋。用同一个 `session_id` 续跑时，已完成的步骤不重跑。Vina 按这个顺序找：调用参数，然后 `VINA_EXE`，然后 `bin/vina.exe`，最后 PATH。
+4. **比较多个候选**。`tcm_multi_path_run(compounds=[...])` 让每个候选各跑一条链（共识、ADME、可选对接），再出横向对比和综合排名。一个受体对多个配体，用 `dock_batch_screening`：并行 Vina，先做 ADME 预过滤，再排名。看网络里哪个节点脆，用 `tcm_network_simulation`：knockout 扫描、蒙特卡洛对照、z-score。
+5. **写报告**。`tcm_report_generate(session_id=...)` 写出 Markdown 研究简报，给导师审阅。简报里有时间线、逐步结果、决策日志、证据分级和每一步的来源。文献共现计数用 `tcm_literature_mine`。网络图用 `tcm_network_figure`。
+6. **按结果分叉**。hub 有多少，决定做不做富集。共识分决定进不进对接。亲和能决定还要不要往下看。出现复现红旗，先回去查受体准备。
+7. **收尾**。会话结束前跑 `tcm_analyze_runtime` 和 `dock_analyze_runtime`。新的运行观察交给 `tcm_report_insight` 或 `dock_report_insight`。写入 `references/runtime_lessons.md` 必须等用户点名，见文末。
+
+**参数**：带参数的工具把参数放在 `{"params": {...}}` 里。
+
+## 说什么，用哪个工具
+
+下表按你说的话选入口。括号里是中英文关键词。
 
 | 用户目标（中/英关键词） | 模块 | 入口 |
 |---|---|---|
@@ -38,40 +42,48 @@ description_cn: 疾病优先检索（疾病→通路→药材→OB成分→超�
 | 多候选横向比较/并行比较（compare, 比较, 多化合物, 哪个更好） | 并行层 | `tcm_multi_path_run`（多臂并行+综合排名） |
 | 论文图/组合图/渲染/证据声明（figure, 渲染, 论文图） | M6 | `make_figure_pml.py` → `compose_panel.py` |
 | 会话收尾/发现新情况/长期运行（runtime, 自迭代, 死路） | M7 | `*_analyze_runtime` → `*_report_insight` |
+| 表格、标识、基因符号、疾病名、剂量或 SMILES（table, SMILES, InChIKey, 基因符号, 剂量, MeSH） | 数据整理 | `tcm_clean_table`、`tcm_normalize_ids`、`tcm_normalize_genes`、`tcm_normalize_disease`、`tcm_convert_dose`、`tcm_normalize_structure` |
 | 不确定/组合目标 | 全部 | `tcm_smart_plan`（自动识别并组链） |
 
-## 强制纪律（任何模块都适用）
+## 写结果时要守的规矩
 
-1. **实时检索**：技能内不预置疾病/基因/成分答案；一切结论来自当次 API 检索，输出带 `source` + `queried_at`；响应缓存仅存过去真实检索（TTL 限界，原始 queried_at 保留在体内，Error 不缓存）
-2. **证据三级**：实验证据 > 结构模板 > 计算预测；对接输出一律 "proposed docking model"；预测残基 `*` + 虚线；结构分类（`tcm_classify_structure`）与网络模拟（`tcm_network_simulation` 的拓扑结论）与 ADME 描述符（`tcm_adme_profile`）均属计算预测层，发表前须交叉验证；多臂/批量的综合排名是**优先级启发式**，不是经验证的打分函数
-3. **ADME 门**：OB≥30 / DL≥0.18，仅用 TCMSP 官方口径（HERB 的 DL 不可混用）；`tcm_adme_profile` 的结构描述符（MW/TPSA/LogP/Lipinski）是互补维度，不可与 TCMSP 门混谈结论
-4. **对接口袋**：口袋残基必须来自文献，禁止臆测；执行引擎缺此输入时宁可暂停；批量筛选默认 exhaustiveness=4 为**快速分诊**，重点化合物须用 16 精对接复验
-5. **原子写**：共享文件临时文件+os.replace，严禁并发写同一文件
-6. **自迭代落库**：新发现（死路/端点变更/怪癖/复现问题）必须 `*_report_insight` 记录，会话结束跑分析
+1. **当次检索**。仓库里不预置疾病、基因或成分的答案。结论来自这次的 API 查询。输出带 `source` 和 `queried_at`。响应缓存只保存过去真实查到的结果，有 TTL。原来的 `queried_at` 留在结果里。报错不缓存。
+2. **证据分三层**。实验证据高于结构模板，结构模板高于计算预测。对接输出一律写 "proposed docking model"。预测残基加 `*`，接触用虚线。`tcm_classify_structure` 的结构分类、`tcm_network_simulation` 的拓扑结论、`tcm_adme_profile` 的 ADME 描述符，都算计算预测。发表前要另行核对。多臂比较和批量筛选的综合排名是优先级启发式，不是验证过的打分函数。
+3. **ADME 门槛**。OB≥30，DL≥0.18。只用 TCMSP 的口径。HERB 的 DL 不能混进来。`tcm_adme_profile` 给出的 MW、TPSA、LogP、Lipinski 是另一套描述符。不要和 TCMSP 这道门写成同一个结论。
+4. **口袋**。口袋残基必须来自文献，不能猜。执行引擎缺口袋就暂停。批量筛选默认 exhaustiveness=4，只做快速分诊。要重点看的化合物，用 exhaustiveness 16 再对接一遍。
+5. **写文件**。共享文件先写临时文件，再用 `os.replace` 换上。不要并发写同一个文件。
+6. **自迭代**。死路、端点变更、接口怪癖和复现问题，用 `*_report_insight` 记下来。会话结束时跑分析。追加到 `references/runtime_lessons.md` 时，必须用户点名那个 id。
+7. **整理不是结论**。`tcm_clean_table`、`tcm_normalize_ids`、`tcm_normalize_structure`、`tcm_normalize_genes`、`tcm_normalize_disease` 和 `tcm_convert_dose` 只整理用户已经给出的文本。基因别名、MeSH 对照和剂量比例不能写成靶点收录或疗效。
 
-## MCP 服务器（AI Agent 接入）
+## MCP 服务器
 
 ```bash
-python -m pip install -r requirements.txt   # 一键装全部 python 依赖
+python -m pip install -r requirements.txt   # 安装 requirements.txt 里的 Python 依赖
 
-python mcp_server/unified_mcp.py --stdio     # 推荐：单连接 56 工具
-python mcp_server/unified_mcp.py             # HTTP 模式（默认 8002）
+python mcp_server/unified_mcp.py --stdio     # 推荐。一次连接 62 个工具
+python mcp_server/unified_mcp.py             # HTTP，默认端口 8002
 ```
 
-**自举层**（bootstrap_layer.py）：`tcm_dependency_status`（依赖健康检查、缺失影响面、`action=install` 可选安装）。Vina 不强制随仓库分发；把 AutoDock Vina 1.2.5 官方二进制放到 `bin/vina.exe`，或设置 `VINA_EXE`。解析顺序：参数 > `VINA_EXE` > `bin/vina.exe` > PATH。见 `bin/README.md`
+**自举**（`bootstrap_layer.py`）：`tcm_dependency_status` 检查依赖是否齐全，以及缺了会影响什么。`action=install` 可以安装缺失的 Python 包。Vina 不随仓库分发。把 AutoDock Vina 1.2.5 的官方二进制放到 `bin/vina.exe`，或设置 `VINA_EXE`。查找顺序：调用参数，`VINA_EXE`，`bin/vina.exe`，PATH。详见 `bin/README.md`。
 
-**智能层**：`unified_overview`（定向）/ `tcm_smart_plan`（动态规划器：规则式意图识别→带决策点的执行 DAG）/ `tcm_smart_run`（自主执行引擎：checkpoint 会话+断点续跑+决策点自动分叉，缺文献口袋残基时暂停）/ `tcm_report_generate`（研究简报）/ `tcm_cache_status`（响应缓存查看/清空，env TCM_CACHE_TTL 默认 3600s）/ `tcm_classify_structure`（SMILES 规则式结构分类：黄酮/蒽醌/香豆素/生物碱/萜类/甾体等，RDKit SMARTS 实测锚定）/ `tcm_self_iterate`（复核运行观察；仅用户点名的 id 追加到 `references/runtime_lessons.md`）/ `tcm_analysis_topology`（按会话重画分析网络：数据库、文献库、方剂索引和执行状态）
-**并行层**（parallel_layer.py）：`tcm_adme_profile`（批量理化+Lipinski/Veber/Egan/QED，名称活取 SMILES）/ `tcm_network_simulation`（STRING 活网络 knockout 扫描+累积敲除+蒙特卡洛对照+z-score）/ `dock_batch_screening`（多配体并行 Vina+ADME 预过滤+亲和能排名，快速分诊）/ `tcm_multi_path_run`（多臂并行分析网络：共识→ADME→可选对接，横向对比+综合排名）
-**P0 证据与配伍扩展**（lit_formula_layer.py + rescore_figure_layer.py）：`tcm_literature_mine`（PubMed E-utilities 三元共现计数+逐年趋势，限速 0.4s/req；**共现=文献计量学信号非因果验证**）/ `tcm_formula_analysis`（药对/复方成分集合 Jaccard 互补度，本地 SymMap 索引 698 药材 25,975 成分，`data/herb_mol_index.json`；可选靶点层）/ `dock_rescore`（批量筛选精排：亲和能谱 mode-gap+文献口袋锚定率+复合分，非验证打分函数）/ `tcm_network_figure`（论文级网络图 3200x2200 PNG+PDF，hub 分层着色，图注含证据分级声明，固定 seed 可复现）
-**P1 细胞分辨率与数据驱动层**（p1_layer.py）：`tcm_graph_embed`（node2vec 式图嵌入：带偏随机游走→PMI→截断SVD 纯 numpy，与种子基因余弦相似度排靶点+与中心性双视角共识；**拓扑视图非功能验证**）/ `tcm_scrna_channel`（GEO 单细胞数据集发现：esearch db=gds+esummary 活查，返回 GSE/设计/物种/样本数/关联PubMed；**HPA/GTEx 通道死路已探明，仅发现层**）/ `tcm_admet_predict`（本地 ADMET 近似面板：ESOL 水溶性(Delaney)/BBB盒式规则/PPB/Caco-2/hERG 代理；**ADMETlab REST 死路，全部标注近似模型**）
-**P2 临床转化层**（p2_layer.py）：`tcm_trials_match`（ClinicalTrials.gov API v2 活查：疾病×靶点/化合物的试验总数+分期计数+NCT 表；**试验匹配=转化上下文，非候选疗效证明**；OpenMM MD 试点经评估延后非死路）
+**智能层**：`unified_overview` 看总览。`tcm_smart_plan` 按规则识别意图，生成带决策点的步骤。`tcm_smart_run` 是执行引擎，会话可以断点续跑，到决策点自动分叉，缺文献口袋残基就暂停。`tcm_report_generate` 写研究简报。`tcm_cache_status` 查看或清空响应缓存，环境变量 `TCM_CACHE_TTL` 默认 3600 秒。`tcm_classify_structure` 用 SMILES 做规则分类，类别有黄酮、蒽醌、香豆素、生物碱、萜类、甾体等，规则用 RDKit SMARTS 对过。`tcm_self_iterate` 复核运行观察，只有用户点名的 id 才会追加到 `references/runtime_lessons.md`。`tcm_analysis_topology` 按会话重画分析网络，标出数据库、文献库、方剂索引和执行状态。
+
+**并行层**（`parallel_layer.py`）：`tcm_adme_profile` 批量算理化性质，以及 Lipinski、Veber、Egan、QED；给出成分名时当场去取 SMILES。`tcm_network_simulation` 在 STRING 的实时网络上做 knockout、累积敲除和蒙特卡洛对照，并算 z-score。`dock_batch_screening` 让多个配体并行做 Vina，先按 ADME 预过滤，再按亲和能排名，用于快速分诊。`tcm_multi_path_run` 让多个候选并行，顺序是共识、ADME、可选对接，然后出对比表和综合排名。
+
+**P0：文献、方剂、精排和出图**（`lit_formula_layer.py`、`rescore_figure_layer.py`）：`tcm_literature_mine` 用 PubMed E-utilities 数三元共现，并看逐年趋势，限速 0.4 秒一次请求。共现是文献计量，不是因果。`tcm_formula_analysis` 算药对或复方成分集合的 Jaccard。本地 SymMap 索引有 698 味药材、25,975 个成分，文件是 `data/herb_mol_index.json`，也可以看靶点层。`dock_rescore` 给批量筛选做精排，看亲和能谱的 mode-gap 和文献口袋锚定率，再给一个复合分。这不是验证过的打分函数。`tcm_network_figure` 出 3200×2200 的 PNG 和 PDF，hub 分层着色，图注里写证据分级，随机种子固定，图可以复现。
+
+**P1**（`p1_layer.py`）：`tcm_graph_embed` 做 node2vec 式图嵌入。带偏随机游走，再算 PMI，用 numpy 做截断 SVD。按与种子基因的余弦相似度排靶点，并和中心性对照。这是拓扑上的排序，不是功能验证。`tcm_scrna_channel` 在 GEO 里找单细胞数据集，用 esearch（`db=gds`）和 esummary 当场查询，返回 GSE、实验设计、物种、样本数和相关 PubMed。HPA 和 GTEx 这条通道已经确认走不通，这里只做数据集发现。`tcm_admet_predict` 是本地 ADMET 近似，包括 ESOL 水溶性（Delaney）、BBB 盒式规则、PPB、Caco-2、hERG 代理。ADMETlab 的 REST 接口已经确认不能用，结果都标成近似模型。
+
+**P2**（`p2_layer.py`）：`tcm_trials_match` 查 ClinicalTrials.gov API v2，当场请求。按疾病和靶点或化合物，返回试验总数、分期计数和 NCT 表。试验匹配只说明转化方面有哪些试验，不能当成候选药已经有效。OpenMM 分子动力学试点评估之后先不做，这条不算死路。
+
+**数据整理**（`prep_layer.py`）：六个工具都不访问网络。`tcm_clean_table` 整理粘贴的表。`tcm_normalize_ids` 检查 CID、CAS 校验位、InChIKey、UniProt 和 Ensembl，裸数字不会当成 CID。`tcm_normalize_structure` 检查 SMILES；装了 RDKit 才写规范 SMILES 和 InChIKey，没装就写明。`tcm_normalize_genes` 把常见别名收成一个符号，家族名保持歧义。`tcm_normalize_disease` 只对到本地核对过的 MeSH 标题，没有的病名保持 unmapped。`tcm_convert_dose` 按点名的度量衡换成克。重量比不是药效。这些工具不进入 `tcm_smart_run` 的自动链。
+
 **检索分析族**：tcm_pubchem_lookup / tcm_kegg_compound / tcm_chembl_lookup / tcm_ensembl_lookup / tcm_search_disease_targets / tcm_string_ppi / tcm_tcmbank_search / tcm_ctd_gene_interactions / tcm_get_gene_info / tcm_ncbi_gene_search / tcm_enrichment_analysis / tcm_npass_search_compound / tcm_get_structure / tcm_dgidb_interactions / tcm_gwas_associations / tcm_check_database_status / tcm_audit_evidence / tcm_symmap_lookup / tcm_kegg_disease_pathways / tcm_hypergeometric_test / tcm_cross_database_screen（并发）/ tcm_network_analysis / tcm_multi_enrichment / tcm_wikidata_lookup / tcm_uniprot_idmap / tcm_report_insight / tcm_analyze_runtime
 **对接建模族**：dock_check_environment / dock_fetch_structure / dock_vina_docking / dock_analyze_contacts / dock_geometric_ppi / dock_report_insight / dock_analyze_runtime / dock_compare_experiments
 
-- 评估基准：mcp_server/evaluation.xml（实测锚定）
-- 分层实现：`unified_mcp.py` 持有 `unified_overview` 与 `tcm_smart_plan`；`smart_layer.py` 持有缓存、结构分类、`tcm_smart_run`、研究报告；`parallel_layer.py` / `lit_formula_layer.py` + `rescore_figure_layer.py` / `p1_layer.py` / `p2_layer.py` / `bootstrap_layer.py` 为其余层。本地索引：`data/herb_mol_index.json`。网络图为自研 Fruchterman–Reingold 布局。历史文档中的 tcm-database-query / structure-docking-analysis 即本技能的 `tcm_*` / `dock_*` 工具族
+评估记录在 `mcp_server/evaluation.xml`，写的是实测，不是推断。代码分层如下。`unified_mcp.py` 里有 `unified_overview` 和 `tcm_smart_plan`。`smart_layer.py` 里有缓存、结构分类、`tcm_smart_run` 和研究报告。其余层在 `parallel_layer.py`、`lit_formula_layer.py`、`rescore_figure_layer.py`、`p1_layer.py`、`p2_layer.py`、`bootstrap_layer.py`、`iteration_layer.py`、`topology_layer.py`、`prep_layer.py`。本地索引是 `data/herb_mol_index.json`。网络图用自研的 Fruchterman–Reingold 布局。以前文档里的 tcm-database-query 和 structure-docking-analysis，就是现在的 `tcm_*` 和 `dock_*`。
 
-## 模块与资产导航
+## 模块与资产
 
 | 模块 | 文档 | 一句话 |
 |---|---|---|
@@ -83,20 +95,29 @@ python mcp_server/unified_mcp.py             # HTTP 模式（默认 8002）
 | M6 渲染出图 | modules/m6_figures_documentation.md | 论文图+组合图+证据分级 |
 | M7 自迭代 | modules/m7_self_iteration.md | 遥测→洞察→用户确认后写入教训 |
 
-- `scripts/`：20 个实测脚本（检索 14 + 对接 6，argparse 参数化，可独立运行）
-- `workflow_engine/`：DAG 自动化工作流引擎（11 步疾病可配置 + 可视化，`run_server.py`）
-- `references/`：15 份按域文档（通道端点/陷阱/风格/证据分级/自迭代机制/已确认教训），**用 grep 定位库名再读该节**
-- 状态目录（运行时自动维护）：`~/.tcm_mcp_state`、`~/.dock_mcp_state`（遥测/洞察/实验台账；env 可覆盖）
+`scripts/` 里有 20 个脚本：检索 14 个，对接 6 个。都用 argparse，可以单独跑。
 
-## 环境要点
+`workflow_engine/` 是本地 DAG。疾病可以配置，一共 11 步，用 `run_server.py` 启动，带看板。
 
-Python 3.10+。Windows 先执行 `$env:PYTHONUTF8="1"`。
+`references/` 有 15 份文档，按数据库和主题记端点、死路、作图风格、证据分级、自迭代和已经确认的教训。用库名搜索，再读那一节。
+
+运行时状态写在 `~/.tcm_mcp_state` 和 `~/.dock_mcp_state`，包括遥测、洞察和实验台账。路径可以用环境变量改。
+
+## 环境
+
+Python 3.10 及以上。Windows 先执行 `$env:PYTHONUTF8="1"`。
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-本地 DAG 工作流另需 `python -m pip install -r requirements-workflow.txt`（pandas、PyYAML）。PyMOL 只在结构出图时需要。对接前运行 `dock_check_environment`。科学边界、两条运行时和 56 个工具的字段级说明见 `docs/`。
+本地 DAG 还要装 `requirements-workflow.txt`（pandas、PyYAML）：
+
+```bash
+python -m pip install -r requirements-workflow.txt
+```
+
+PyMOL 只在画结构图时需要。对接前先跑 `dock_check_environment`。科学边界、两条运行路径，以及 62 个工具的字段说明，写在 `docs/`。
 
 ## 每次运行后的自迭代
 
@@ -108,8 +129,8 @@ python -m pip install -r requirements.txt
 4. `apply` 只追加 `references/runtime_lessons.md`。不要据此修改工具代码、OB/DL 门槛、口袋规则、统计函数或数据源路由。
 5. 这些条目是运行观察。下次遇到相符的失败时向用户说明，不要把它们写成疗效或靶点结论。
 
-## 分析网络拓扑
+## 分析网络
 
-`tcm_smart_run` 在每一步之后重画分析网络。图里同时有两类节点：疾病、通路、基因、成分、药材、方剂集合、文献和试验；以及 KEGG、SymMap、STRING、PubChem、ChEMBL、Pharos、Open Targets、PubMed、ClinicalTrials.gov 和本地药材成分索引。目标里出现至少两味药材时，引擎先用本地索引计算成分集合重叠，再继续在线检索。
+`tcm_smart_run` 在每一步之后重画分析网络。图里有两类节点。一类是疾病、通路、基因、成分、药材、方剂集合、文献和试验。另一类是 KEGG、SymMap、STRING、PubChem、ChEMBL、Pharos、Open Targets、PubMed、ClinicalTrials.gov 和本地药材成分索引。目标里至少有两味药材时，引擎先用本地索引算成分集合重叠，再继续在线检索。
 
-返回里的 Mermaid 和 `sessions/<id>.topology.svg` 表示网络怎样长成、哪一步已完成或失败。需要重画时调用 `tcm_analysis_topology`。文献共现、集合重叠、试验登记和收录计数都标在边上，它们不是疗效或配伍结论。
+返回里的 Mermaid 和 `sessions/<id>.topology.svg` 表示网络怎样长出来，以及哪一步完成了、哪一步失败了。需要重画时调用 `tcm_analysis_topology`。文献共现、集合重叠、试验登记和收录计数标在边上。这些是检索关系，不是疗效，也不是配伍结论。

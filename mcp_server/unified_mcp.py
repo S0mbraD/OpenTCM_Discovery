@@ -3,7 +3,7 @@
 
 Combines the retrieval/analysis tool family (27 tools) and the
 docking/modeling tool family (8 tools) with the intelligence, parallel,
-evidence, P1, P2, bootstrap, iteration, and topology layers into one 56-tool server:
+evidence, P1, P2, bootstrap, iteration, topology, and prep layers into one 62-tool server:
 
   unified_overview  - first-contact orientation: modules, tool inventory,
                       state health, quick-start protocol
@@ -56,6 +56,7 @@ P2_IMPL = BASE / "p2_layer.py"
 BOOTSTRAP_IMPL = BASE / "bootstrap_layer.py"
 ITERATION_IMPL = BASE / "iteration_layer.py"
 TOPOLOGY_IMPL = BASE / "topology_layer.py"
+PREP_IMPL = BASE / "prep_layer.py"
 
 # ================= submodule loading + tool transfer =================
 
@@ -100,6 +101,7 @@ _p2_mod = _load_module(P2_IMPL, "tcm_unified_impl_p2")
 _bootstrap_mod = _load_module(BOOTSTRAP_IMPL, "tcm_unified_impl_bootstrap")
 _iteration_mod = _load_module(ITERATION_IMPL, "tcm_unified_impl_iteration")
 _topology_mod = _load_module(TOPOLOGY_IMPL, "tcm_unified_impl_topology")
+_prep_mod = _load_module(PREP_IMPL, "tcm_unified_impl_prep")
 
 # transparent response cache on read-only retrieval tools (schema unchanged;
 # original queried_at preserved inside cached responses)
@@ -124,6 +126,7 @@ _P2_TOOLS, _p2_skip = _transfer_tools(_p2_mod.mcp)
 _BOOTSTRAP_TOOLS, _bootstrap_skip = _transfer_tools(_bootstrap_mod.mcp)
 _ITERATION_TOOLS, _iteration_skip = _transfer_tools(_iteration_mod.mcp)
 _TOPOLOGY_TOOLS, _topology_skip = _transfer_tools(_topology_mod.mcp)
+_PREP_TOOLS, _prep_skip = _transfer_tools(_prep_mod.mcp)
 
 # expose underlying fns to the execution engines (smart_layer.tcm_smart_run,
 # parallel_layer, lit_formula_layer call them directly; includes the
@@ -253,6 +256,7 @@ async def unified_overview() -> str:
     bootstrap_tools = sorted(_BOOTSTRAP_TOOLS)
     iteration_tools = sorted(_ITERATION_TOOLS)
     topology_tools = sorted(_TOPOLOGY_TOOLS)
+    prep_tools = sorted(_PREP_TOOLS)
     return _fmt({
         "skill": "open-tcm-discovery (unified: retrieval + analysis + "
                  "docking + execution engine)",
@@ -334,6 +338,19 @@ async def unified_overview() -> str:
                                          "target-pathway network and the "
                                          "step status strip from a session",
                 "tools": topology_tools},
+            "local_prep": {
+                "tcm_clean_table": "pasted table to header and rows",
+                "tcm_normalize_ids": "CID, CAS checksum, InChIKey, "
+                                     "UniProt, Ensembl shapes; no lookup",
+                "tcm_normalize_structure": "SMILES check; RDKit canonical "
+                                           "SMILES and InChIKey when installed",
+                "tcm_normalize_genes": "local HGNC alias collapse; "
+                                       "ambiguous family names stay open",
+                "tcm_normalize_disease": "small checked MeSH crosswalk; "
+                                         "unknown names stay unmapped",
+                "tcm_convert_dose": "grams under a named metrology; "
+                                    "weight ratio is not efficacy",
+                "tools": prep_tools},
             "bootstrap": {
                 "tcm_dependency_status": "dependency health check with "
                                          "impact analysis + opt-in "
@@ -351,7 +368,7 @@ async def unified_overview() -> str:
             "transfer_notes": (_tcm_skip + _dock_skip + _smart_skip +
                               _parallel_skip + _lit_skip + _rescore_skip +
                               _p1_skip + _p2_skip + _bootstrap_skip +
-                              _iteration_skip + _topology_skip)
+                              _iteration_skip + _topology_skip + _prep_skip)
                               or "all tools transferred"},
         "state_health": {
             "retrieval_state": _state_snapshot(_tcm_mod.STATE_DIR),
