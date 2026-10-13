@@ -6,6 +6,7 @@
 
 ### Added
 
+- 进度说明 `docs/PROJECT_PROGRESS.md`：写明当前检索如何收成分析网、证据口径，以及尚未接入的部分
 - `tcm_tcmsp_search`：请求 TCMSP 旧站 `old.tcmsp-e.com`。2026-10-13 探测里，只有这里还能返回带 `ob`、`dl` 的成分表。`ob_dl_filter` 只筛这些字段。失败不补记录
 - 分析网络拓扑：小图改为圆角卡片（名称、详情、状态色、有向动效边）；实体节点满 300 后改为按类别分组的球面，并同时写出 `.topology.svg` 与自包含 `.topology.html`
 - 分析网络改为浅暖宣纸底和木色边框。SVG、自包含 HTML，以及 `tcm_analysis_topology` 和 `tcm_smart_run` 的拓扑摘要增加图例、检索通路、下一步建议和数据源状态
