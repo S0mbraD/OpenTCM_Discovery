@@ -13,7 +13,7 @@
   tcm_analyze_runtime / dock_analyze_runtime
   → 通道健康表 / 死路候选 / 慢通道 / 复现红旗 / 洞察合并 → proposed_updates
 出口：
-  proposed_updates → 平台技能自进化确认流（用户确认后才改文档）
+  tcm_self_iterate review → 用户点名 → apply 追加 runtime_lessons.md
 ```
 
 ## 工具链
@@ -25,6 +25,7 @@
    category: dead_end | endpoint_change | quirk | performance | new_channel | methodology
 ④ dock_report_insight {category: environment|method|quirk|performance|repro, ...}
 ⑤ dock_compare_experiments {ligand, receptor, exp_type}   # 台账查询/排名
+⑥ tcm_self_iterate {action: review|apply|reject, confirm_ids}  # 用户点名后才写教训
 ```
 
 ## 决策规则
@@ -35,9 +36,11 @@
 
 ## 会话收尾协议（Agent 必做）
 
-1. `tcm_analyze_runtime` + `dock_analyze_runtime` → 提取 proposed_updates
-2. 有新发现（本次会话学到的）→ `*_report_insight` 落库
-3. proposed_updates 摘要给用户 → 用户确认 → 平台技能自进化 staged update（带回退凭证）
+1. 阅读 `tcm_smart_run` 返回的 iteration packet，或调用 `tcm_self_iterate`（`action=review`）
+2. 有新发现时，先用 `*_report_insight` 落库，再复核
+3. 向用户展示 `strength=strong` 的 id、标题和证据
+4. 用户点名的 id 用 `action=apply` 追加到 `references/runtime_lessons.md`；用户否定的 id 用 `action=reject`
+5. 未确认时不改技能文件。已确认的条目不改变工具代码、OB/DL、口袋规则或请求路由
 
-状态目录：`~/.tcm_mcp_state`（TCM_MCP_STATE_DIR 可覆盖）、`~/.dock_mcp_state`（DOCK_MCP_STATE_DIR）。
+状态目录：`~/.tcm_mcp_state`（TCM_MCP_STATE_DIR 可覆盖）、`~/.dock_mcp_state`（DOCK_MCP_STATE_DIR）。确认账本在检索状态目录的 `iteration_ledger.json`。
 机制细节/格式/开源依据（AgentLens/Self-Improving/Hermes）：references/self_iteration.md

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Repository consistency check. No network, no third-party imports.
 
-Verifies Python syntax, the 54 MCP tool registrations, and that user-facing
+Verifies Python syntax, the 56 MCP tool registrations, and that user-facing
 docs do not revive retired counts, ports, or machine-local paths.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MCP = ROOT / "mcp_server"
-EXPECTED = 54
+EXPECTED = 56
 
 TOOL_RE = re.compile(
     r'@mcp\.tool\((?:(?!@mcp\.tool).){0,800}?name\s*=\s*"([^"]+)"',
@@ -75,8 +75,19 @@ def check_tools() -> list[str]:
     if missing:
         errors.append("docs/TOOLS.md missing: " + ", ".join(missing))
     skill = _read(ROOT / "SKILL.md")
-    if "54" not in skill.split("---", 2)[2]:
-        errors.append("SKILL.md body does not mention 54 tools")
+    if "56" not in skill.split("---", 2)[2]:
+        errors.append("SKILL.md body does not mention 56 tools")
+    if "tcm_self_iterate" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load tcm_self_iterate")
+    if "tcm_analysis_topology" not in _read(MCP / "unified_mcp.py"):
+        errors.append("unified_mcp.py does not load tcm_analysis_topology")
+    graph_src = _read(ROOT / "tcm_core" / "analysis_graph.py")
+    if "共现不是因果" not in graph_src or "集合重叠不是药效" not in graph_src:
+        errors.append("analysis graph lost the evidence-limit labels")
+    if "build_from_session" not in _read(MCP / "smart_layer.py"):
+        errors.append("smart_layer.py does not build the analysis graph")
+    if "references/runtime_lessons.md" not in _read(MCP / "iteration_layer.py"):
+        errors.append("iteration_layer.py lost the lesson file target")
     formula = _read(MCP / "lit_formula_layer.py")
     paths = _read(ROOT / "tcm_core" / "paths.py")
     if "herb_index_candidates" not in formula:

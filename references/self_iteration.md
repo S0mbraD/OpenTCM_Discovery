@@ -20,8 +20,8 @@ Agent 分析总结 ──> │ insights.json    洞察库（Agent 主动写入�
                     └──────────────────────────────────┘
                                         │
                     ┌────────────── 迭代出口 ────────────┐
-                    │ proposed_updates → 平台技能自进化确认流（用户确认后生效） │
-                    │ 或人工编辑 references 文档沉淀                       │
+                    │ proposed_updates → tcm_self_iterate（用户点名后追加教训） │
+                    │ 未确认的建议留在状态目录，不改技能文件                   │
                     └──────────────────────────────────┘
 ```
 
@@ -56,16 +56,17 @@ Agent 分析总结 ──> │ insights.json    洞察库（Agent 主动写入�
 - 错误消息统一追加指引：`tcm_analyze_runtime` 可查通道健康与已记录洞察。
 - 洞察**不自动改写请求路由**（防止过拟合——参考 RRSI 正则化思路）：命中≥2 次的洞察才进入 proposed_updates 强建议区。
 
-## 五、与平台技能自进化的衔接
+## 五、与连接中的智能体衔接
 
-`proposed_updates` 是建议文本（dead_end 候选/延迟回归/复现红旗/高频洞察），设计为可被宿主 Agent 直接转述进 TeleAgent 的技能自进化流程：
+`tcm_self_iterate` 是本仓库里的确认口，不依赖外部技能平台：
 
-1. Agent 长会话结束前调用 `*_analyze_runtime`
-2. 将 proposed_updates 摘要给用户，说明"技能运行发现了可优化点"
-3. 用户确认 → 平台 staged update（带回退凭证）→ 技能文档真正迭代
-4. 未确认的建议保留在洞察库中，随 hits 增长持续可见
+1. 每次 `tcm_smart_run` 结束，返回里都有 iteration packet
+2. 智能体调用 `action=review`，把 strong 条目的 id、标题和证据给用户
+3. 用户点名后，`action=apply` 把观察追加到 `references/runtime_lessons.md`
+4. 用户否定的 id 用 `action=reject` 记入 `iteration_ledger.json`，下次不再出现
+5. 同一 id 重复 apply 不会再写一行
 
-这实现了两级闭环：**MCP 运行时级**（数据驱动、即时、本地）与**平台技能级**（用户确认、可回退、全局）。
+教训文件只增加运行观察。它不改写请求路由、OB/DL 门槛、口袋规则或统计代码。命中次数不足 2 的洞察标记为 watch，仍须用户点名才会写入。
 
 ## 六、其他 Agent 宿主接入要点
 

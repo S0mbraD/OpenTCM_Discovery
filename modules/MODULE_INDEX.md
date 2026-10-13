@@ -33,8 +33,8 @@ M1 疾病检索 ──通路基因──> M3 网络富集 ──hub基因──>
 | M4 | molecular_library_builder.py（14步）+ tcm_classify_structure | OB/DL 门/QC 评分 | 分子库四件套+结构分类 |
 | M5 | dock_check_environment → dock_vina_docking | D5 亲和能、D6 回查 | pose/接触/台账 |
 | M6 | make_figure_pml.py → compose_panel.py | 证据分级 | 论文图/组合图 |
-| M7 | *_analyze_runtime → *_report_insight | hits≥2 强建议 | proposed_updates |
-| 智能层 | tcm_smart_plan / tcm_smart_run / tcm_report_generate / tcm_cache_status / tcm_classify_structure | 决策点自动分叉；缺文献口袋残基时暂停 | 会话 checkpoint/研究简报/缓存/分类 |
+| M7 | tcm_self_iterate；先 *_report_insight / *_analyze_runtime | hits≥2 为 strong；用户点名后才写入 | references/runtime_lessons.md |
+| 智能层 | tcm_smart_plan / tcm_smart_run / tcm_report_generate / tcm_cache_status / tcm_classify_structure / tcm_self_iterate / tcm_analysis_topology | 决策点自动分叉；缺文献口袋残基时暂停；拓扑图随步骤重画 | 会话 checkpoint/研究简报/缓存/分类/分析网络 SVG |
 | 并行层 | tcm_adme_profile / tcm_network_simulation / dock_batch_screening / tcm_multi_path_run | 综合排名=优先级启发式 | 批量理化/knockout 排名/并行对接排名/多臂对比表 |
 | P0 证据配伍 | tcm_literature_mine / tcm_formula_analysis / dock_rescore / tcm_network_figure | 共现=文献计量学信号非因果；重打分=启发式 | 文献计数表/配对互补矩阵/精排表/论文网络图 |
 | P1 细胞分辨率与数据驱动 | tcm_graph_embed / tcm_scrna_channel / tcm_admet_predict | 嵌入=拓扑视图非功能验证；GEO 仅发现层；ADMET 全近似 | 靶点优先级排名/数据集表/ADMET 面板 |

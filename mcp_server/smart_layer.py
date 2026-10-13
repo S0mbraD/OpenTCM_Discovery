@@ -41,6 +41,11 @@ from typing import Any, Callable, Dict, List, Optional
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+from tcm_core.analysis_graph import (  # noqa: E402
+    build_from_session,
+    herbs_in_text,
+)
+from tcm_core.iteration import review_from_env  # noqa: E402
 from tcm_core.text import (  # noqa: E402
     extract_known_compounds,
     normalize_pocket_residues,
@@ -616,6 +621,12 @@ class SmartRunInput(BaseModel):
     disease: Optional[str] = Field(None, max_length=200)
     compounds: Optional[List[str]] = Field(None, max_length=20)
     genes: Optional[List[str]] = Field(None, max_length=50)
+    herbs: Optional[List[str]] = Field(
+        None, max_length=8,
+        description="Chinese, pinyin, or Latin herb names. Two or more "
+                    "schedule a local formula set-overlap on the analysis "
+                    "network. Names in the goal are also matched against "
+                    "the local SymMap index.")
     session_id: Optional[str] = Field(
         None, description="RESUME an existing session (checkpointed)")
     docking_inputs: Optional[Dict[str, Any]] = Field(
@@ -650,7 +661,7 @@ class _Engine:
         self.s = state
 
     # -- step bookkeeping -------------------------------------------------
-    def done(self, step: int, tool: str, module: str, result: Dict,
+    def done(self, step: float, tool: str, module: str, result: Dict,
              summary: str, decision: str = "") -> None:
         self.s["executed"].append({
             "step": step, "module": module, "tool": tool,
@@ -662,6 +673,17 @@ class _Engine:
             "source": result.get("source"),
             "queried_at": result.get("queried_at", _now_iso()),
             "finished_at": _now_iso()})
+        self.sync_graph()
+
+    def sync_graph(self) -> None:
+        graph = build_from_session(self.s)
+        self.s["analysis_graph"] = graph.to_dict()
+        try:
+            svg_path = SESSIONS_DIR / f"{self.s['session_id']}.topology.svg"
+            svg_path.write_text(graph.to_svg(), encoding="utf-8")
+            self.s["topology_svg"] = str(svg_path)
+        except OSError:
+            pass
 
     def save(self) -> None:
         self.s["updated_at"] = _now_iso()
@@ -751,6 +773,42 @@ def _extract_compounds(goal: str) -> List[str]:
     return extract_known_compounds(goal)
 
 
+_HERB_NAME_ROWS = None
+
+
+def _herb_name_rows() -> List[dict]:
+    global _HERB_NAME_ROWS
+    if _HERB_NAME_ROWS is not None:
+        return _HERB_NAME_ROWS
+    from tcm_core.paths import herb_index_candidates
+    rows: List[dict] = []
+    for path in herb_index_candidates(_REPO_ROOT):
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        herbs = data.get("herbs") or {}
+        if isinstance(herbs, dict):
+            rows = [row for row in herbs.values() if isinstance(row, dict)]
+        break
+    _HERB_NAME_ROWS = rows
+    return rows
+
+
+def _collect_herbs(goal: Optional[str], explicit: Optional[List[str]]) -> List[str]:
+    names = []
+    for name in explicit or []:
+        cleaned = str(name).strip()
+        if cleaned and cleaned not in names:
+            names.append(cleaned)
+    for name in herbs_in_text(goal or "", _herb_name_rows()):
+        if name not in names:
+            names.append(name)
+    return names[:8]
+
+
 async def run_session(params: SmartRunInput) -> str:
     t_start = time.time()
     # ---- resume or create -------------------------------------------------
@@ -764,7 +822,10 @@ async def run_session(params: SmartRunInput) -> str:
             state["docking_inputs"] = params.docking_inputs
         if params.depth == "full":
             state.setdefault("intent", {})["depth"] = "full"
+        if params.herbs:
+            state["herbs"] = _collect_herbs("", params.herbs)
         engine = _Engine(state)
+        engine.sync_graph()
         paused = state.get("paused_at")
         first_step = (paused["step"] if paused else
                       len(state.get("executed", [])) + 1)
@@ -792,6 +853,7 @@ async def run_session(params: SmartRunInput) -> str:
             "disease": params.disease,
             "compounds": params.compounds or extracted,
             "genes": params.genes or [],
+            "herbs": _collect_herbs(params.goal, params.herbs),
             "intent": {"disease": has_disease, "compounds": has_comp,
                        "genes": has_genes, "docking": want_dock,
                        "depth": params.depth},
@@ -799,6 +861,7 @@ async def run_session(params: SmartRunInput) -> str:
             "executed": [], "decisions": [], "status": "running",
             "created_at": _now_iso()}
         engine = _Engine(state)
+        engine.sync_graph()
         first_step = 1
 
     disease = state.get("disease") or _guess_disease(params.goal or "")
@@ -807,6 +870,24 @@ async def run_session(params: SmartRunInput) -> str:
 
     def step_done() -> bool:
         return (time.time() - t_start) > budget
+
+    herbs = state.get("herbs") or []
+    if first_step <= 1.5 and len(herbs) >= 2:
+        res = await _invoke("tcm_formula_analysis", 90,
+                            herbs=herbs[:8], include_targets=False)
+        matched = res.get("herbs_matched") or {}
+        engine.done(1.5, "tcm_formula_analysis", "P0", res,
+                    f"local formula set-overlap for {len(matched) or len(herbs)} "
+                    "herbs (set overlap, not synergy)")
+        engine.save()
+    elif not any(d.get("point") == "D7" for d in state.get("decisions") or []):
+        engine.s.setdefault("decisions", []).append({
+            "point": "D7",
+            "rule": "方剂集合层需要至少两味药材。分析网络保留药材索引节点，"
+                    "不计算集合重叠。",
+        })
+        engine.sync_graph()
+        engine.save()
 
     # ---- step 1: disease -> pathways (M1) ---------------------------------
     if first_step <= 1 and disease:
@@ -1120,6 +1201,45 @@ def _fmt_session(state: Dict, paused: bool, note: str = "") -> str:
                      "Executed steps are checkpointed and will NOT rerun.")
         lines.append("Then: `tcm_report_generate(session_id=...)` produces "
                      "the review-ready brief.")
+    try:
+        topo = build_from_session(state)
+    except Exception as exc:
+        topo = None
+        lines.append("")
+        lines.append(f"- analysis topology unavailable: {type(exc).__name__}")
+    if topo is not None:
+        lines.append("")
+        lines.append("## analysis topology")
+        lines.extend(topo.summary_lines())
+        if state.get("topology_svg"):
+            lines.append(f"- svg: `{state['topology_svg']}`")
+        lines.append("- 重画这张图：`tcm_analysis_topology`。")
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append(topo.to_mermaid())
+        lines.append("```")
+    packet = state.get("iteration")
+    if not isinstance(packet, dict):
+        try:
+            packet = review_from_env()
+        except Exception as exc:
+            packet = {"open": [], "error": type(exc).__name__}
+        state["iteration"] = packet
+    opened = packet.get("open") or []
+    lines.append("")
+    lines.append("## iteration packet (for the connected agent)")
+    lines.append(f"- open proposals: {len(opened)}")
+    lines.append(f"- strong proposals: {packet.get('strong_count', 0)}")
+    for item in opened[:8]:
+        lines.append(f"- `{item.get('id')}` [{item.get('strength')}] "
+                     f"{item.get('title')}")
+    if not opened:
+        lines.append("- 本次没有待确认教训，不要改技能文件。")
+    else:
+        lines.append("- 向用户展示 strong 条目的 id、标题和证据。")
+        lines.append("- 用户点名后调用 `tcm_self_iterate`，"
+                     "`action=apply` 或 `action=reject`。")
+        lines.append("- 未确认前不要改技能文件、门槛或工具代码。")
     lines.append("")
     lines.append(f"- queried_at: {_now_iso()}")
     return "\n".join(lines)
@@ -1235,6 +1355,14 @@ async def tcm_report_generate(params: ReportGenerateInput) -> str:
         L.append(f"- {s['paused_at'].get('reason')}")
         for need in s["paused_at"].get("needs", []):
             L.append(f"- needs: {need}")
+        L.append("")
+    if s.get("analysis_graph") or s.get("executed"):
+        topo = build_from_session(s)
+        L.append("## Analysis topology")
+        L.extend(topo.summary_lines())
+        if s.get("topology_svg"):
+            L.append(f"- svg: `{s['topology_svg']}`")
+        L.append("- redraw with `tcm_analysis_topology`")
         L.append("")
     L.append("## Evidence grading")
     L.append("- retrieval steps: live database queries (source/queried_at "

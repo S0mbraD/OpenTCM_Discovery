@@ -6,7 +6,7 @@ OpenTCM Discovery 是一个开源的中药小分子发现工具。它把疾病�
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](requirements.txt)
-[![MCP tools](https://img.shields.io/badge/MCP-54%20tools-2ea44f.svg)](docs/TOOLS.md)
+[![MCP tools](https://img.shields.io/badge/MCP-56%20tools-2ea44f.svg)](docs/TOOLS.md)
 
 一次典型的分析从疾病或成分出发，先检索公开数据库，再根据基因数量决定是否构建蛋白互作网络，然后核对多个数据库是否同时收录该靶点或成分。只有在文献已经写明结合口袋时，才会继续做 AutoDock Vina 对接。每条在线结果都带有 `source` 和 `queried_at`。科学边界的完整说明见 [docs/SCIENTIFIC_SCOPE.md](docs/SCIENTIFIC_SCOPE.md)，下一阶段要补的数据库和测试见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
@@ -28,7 +28,7 @@ OpenTCM Discovery 是一个开源的中药小分子发现工具。它把疾病�
 
 如果你正在做中药或天然产物的计算筛选，希望先知道一个疾病对应哪些通路、一味药里有哪些已收录成分、一个成分在哪些数据库里能对上，再用文献中的口袋看结合姿势，这个仓库就是为这条工作准备的。
 
-它同时提供两种用法。第一种是 MCP 服务，供 Cursor 等智能体按自然语言目标调用 54 个工具。第二种是本地打分流程，读取你自己准备的机制表、临床药表和分子库。两种用法不互相调用，避免把在线检索和本地加权分混成一条证据。
+它同时提供两种用法。第一种是 MCP 服务，供 Cursor 等智能体按自然语言目标调用 56 个工具。第二种是本地打分流程，读取你自己准备的机制表、临床药表和分子库。两种用法不互相调用，避免把在线检索和本地加权分混成一条证据。
 
 ## 现在可以完成的工作
 
@@ -60,7 +60,7 @@ python -m pip install -r requirements.txt
 python examples/basic_usage.py
 ```
 
-正常情况下会看到 `tools registered: 54`。这一步需要访问公网。没有网络时服务器仍能启动，检索工具会返回上游错误，而不是本地编造的结果。
+正常情况下会看到 `tools registered: 56`。这一步需要访问公网。没有网络时服务器仍能启动，检索工具会返回上游错误，而不是本地编造的结果。
 
 分子对接还需要 AutoDock Vina 1.2.5 和 Meeko。可执行文件不随 Git 提交，放置方法写在 [bin/README.md](bin/README.md)。没有 Vina 时，检索、网络、文献和临床试验工具不受影响。
 
@@ -157,7 +157,7 @@ flowchart TD
 
 ```
 SKILL.md                 给智能体读的使用约定
-mcp_server/              54 个工具的服务器
+mcp_server/              56 个工具的服务器
 tcm_core/                超几何检验、口袋残基和索引路径等可单测的函数
 scripts/                 可单独运行的检索、分子库、对接和出图脚本
 workflow_engine/         11 步本地打分流程和看板
@@ -176,7 +176,7 @@ python scripts/check_repo.py
 python -m unittest discover -s tests -v
 ```
 
-前一条命令不访问网络。它检查 Python 语法、54 个工具的名字是否都写进工具总表，并阻止已经废弃的端口、工具数和本机路径写回文档。后一条命令核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。扑克牌算例要求：52 张牌、13 张红心、抽 5 张，至少 3 张红心的概率约为 0.0928。
+前一条命令不访问网络。它检查 Python 语法、56 个工具的名字是否都写进工具总表，并阻止已经废弃的端口、工具数和本机路径写回文档。后一条命令核对超几何尾概率、Benjamini–Hochberg 校正、成分名提取和口袋残基解析。扑克牌算例要求：52 张牌、13 张红心、抽 5 张，至少 3 张红心的概率约为 0.0928。
 
 在线行为的历史记录在 [CHANGELOG.md](CHANGELOG.md) 和 `mcp_server/evaluation.xml`。上游接口会变化，正式分析前请运行 `tcm_check_database_status`。
 
@@ -187,7 +187,7 @@ python -m unittest discover -s tests -v
   title  = {OpenTCM Discovery},
   year   = {2026},
   url    = {https://github.com/S0mbraD/OpenTCM_Discovery},
-  note   = {MCP service for TCM small-molecule discovery, 54 tools}
+  note   = {MCP service for TCM small-molecule discovery, 56 tools}
 }
 ```
 

@@ -6,6 +6,8 @@
 
 ### Added
 
+- `tcm_analysis_topology`：检索过程中维护疾病–通路–基因–成分–药材–方剂分析网络，并把数据库、文献库和本地方剂索引画进同一张可重放的拓扑图
+- `tcm_self_iterate`：每次运行结束后，连接的智能体复核本地遥测和洞察。只有用户点名的 id 会追加到 `references/runtime_lessons.md`，不改工具代码、证据门槛或数据源路由
 - 主页改为完整的中文项目介绍，并补充数据来源说明 `docs/DATA_SOURCES.md` 与技术路线 `docs/ROADMAP.md`
 - `tcm_core`：超几何尾概率、Benjamini–Hochberg 校正、成分名提取、口袋残基解析和索引路径
 - 不访问网络的单元测试 `tests/`，并加入持续集成

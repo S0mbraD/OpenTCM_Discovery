@@ -1,8 +1,8 @@
 # 工具总表
 
-统一入口 `mcp_server/unified_mcp.py` 注册下面 54 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
+统一入口 `mcp_server/unified_mcp.py` 注册下面 56 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
 
-## 智能层（6）
+## 智能层（8）
 
 | 工具 | 作用 |
 |---|---|
@@ -12,6 +12,8 @@
 | `tcm_report_generate` | 把一次会话写成可审阅的 Markdown 简报 |
 | `tcm_cache_status` | 查看或清空只读检索缓存 |
 | `tcm_classify_structure` | 用 RDKit SMARTS 给 SMILES 做结构大类分类；无 RDKit 时退回字符串启发 |
+| `tcm_self_iterate` | 复核本地运行观察。`action=apply` 或 `reject` 只处理用户点名的 id，并只追加 `references/runtime_lessons.md` |
+| `tcm_analysis_topology` | 按会话重画分析网络和执行状态。输出 Mermaid 与 SVG |
 
 ## 检索、网络与自迭代（27）
 

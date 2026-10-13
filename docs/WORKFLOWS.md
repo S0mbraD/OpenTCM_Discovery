@@ -22,6 +22,7 @@ Agent 侧的顺序：
 
 | 步号 | 条件 | 工具 |
 |---|---|---|
+| 1.5 | 目标或参数里至少两味药材 | `tcm_formula_analysis`（本地索引，集合重叠） |
 | 1 | 能识别疾病 | `tcm_kegg_disease_pathways` |
 | 2 | 通路基因不少于 15 | `tcm_network_analysis`；否则跳过 |
 | 3 | 有基因 | `tcm_multi_enrichment` |
@@ -56,6 +57,9 @@ python scripts/disease_pathway_workflow.py build-index --out data
 | D4 | 化合物共识达到 2/3 再考虑对接；引擎记下规则，不在未验证名称上编造结构 |
 | D5 | 亲和能 ≤ −7 kcal/mol 继续看接触；> −5 kcal/mol 视为弱结合 |
 | D6 | 预测残基回查 UniProt 或文献之后，才能写成关键残基 |
+| D7 | 少于两味药材时不计算方剂集合重叠；索引节点仍留在分析网络上 |
+
+每一步完成后，会话里的分析网络会更新。`tcm_analysis_topology` 按 `session_id` 重画 Mermaid 和 SVG，用来看数据库、文献库、方剂索引和步骤状态。图是检索过程的拓扑，不是疗效结论。
 
 D5 的阈值是分诊约定，不是结合的实验判据。
 

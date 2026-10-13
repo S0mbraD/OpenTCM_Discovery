@@ -3,7 +3,7 @@
 
 Combines the retrieval/analysis tool family (27 tools) and the
 docking/modeling tool family (8 tools) with the intelligence, parallel,
-evidence, P1, P2, and bootstrap layers into one 54-tool server:
+evidence, P1, P2, bootstrap, iteration, and topology layers into one 56-tool server:
 
   unified_overview  - first-contact orientation: modules, tool inventory,
                       state health, quick-start protocol
@@ -54,6 +54,8 @@ RESCORE_IMPL = BASE / "rescore_figure_layer.py"
 P1_IMPL = BASE / "p1_layer.py"
 P2_IMPL = BASE / "p2_layer.py"
 BOOTSTRAP_IMPL = BASE / "bootstrap_layer.py"
+ITERATION_IMPL = BASE / "iteration_layer.py"
+TOPOLOGY_IMPL = BASE / "topology_layer.py"
 
 # ================= submodule loading + tool transfer =================
 
@@ -96,6 +98,8 @@ _rescore_mod = _load_module(RESCORE_IMPL, "tcm_unified_impl_rescore")
 _p1_mod = _load_module(P1_IMPL, "tcm_unified_impl_p1")
 _p2_mod = _load_module(P2_IMPL, "tcm_unified_impl_p2")
 _bootstrap_mod = _load_module(BOOTSTRAP_IMPL, "tcm_unified_impl_bootstrap")
+_iteration_mod = _load_module(ITERATION_IMPL, "tcm_unified_impl_iteration")
+_topology_mod = _load_module(TOPOLOGY_IMPL, "tcm_unified_impl_topology")
 
 # transparent response cache on read-only retrieval tools (schema unchanged;
 # original queried_at preserved inside cached responses)
@@ -118,6 +122,8 @@ _RESCORE_TOOLS, _rescore_skip = _transfer_tools(_rescore_mod.mcp)
 _P1_TOOLS, _p1_skip = _transfer_tools(_p1_mod.mcp)
 _P2_TOOLS, _p2_skip = _transfer_tools(_p2_mod.mcp)
 _BOOTSTRAP_TOOLS, _bootstrap_skip = _transfer_tools(_bootstrap_mod.mcp)
+_ITERATION_TOOLS, _iteration_skip = _transfer_tools(_iteration_mod.mcp)
+_TOPOLOGY_TOOLS, _topology_skip = _transfer_tools(_topology_mod.mcp)
 
 # expose underlying fns to the execution engines (smart_layer.tcm_smart_run,
 # parallel_layer, lit_formula_layer call them directly; includes the
@@ -213,8 +219,9 @@ MODULES = [
      "doc": "modules/m6_figures_documentation.md"},
     {"id": "M7", "name": "运行时自迭代",
      "triggers": "会话结束前/发现新情况/长期运行/复现性疑问",
-     "chain": "tcm_analyze_runtime + dock_analyze_runtime → proposed_updates → "
-              "tcm_report_insight / dock_report_insight 落库 → 平台技能自进化确认流",
+     "chain": "tcm_analyze_runtime + dock_analyze_runtime → "
+              "tcm_report_insight / dock_report_insight 落库 → "
+              "tcm_self_iterate 向用户确认后追加 references/runtime_lessons.md",
      "doc": "modules/m7_self_iteration.md"},
 ]
 
@@ -244,6 +251,8 @@ async def unified_overview() -> str:
     p1_tools = sorted(_P1_TOOLS)
     p2_tools = sorted(_P2_TOOLS)
     bootstrap_tools = sorted(_BOOTSTRAP_TOOLS)
+    iteration_tools = sorted(_ITERATION_TOOLS)
+    topology_tools = sorted(_TOPOLOGY_TOOLS)
     return _fmt({
         "skill": "open-tcm-discovery (unified: retrieval + analysis + "
                  "docking + execution engine)",
@@ -261,8 +270,14 @@ async def unified_overview() -> str:
             "markdown brief with provenance and evidence grading",
             "6. adapt: at each dynamic point re-decide based on results "
             "(hub count, consensus score, affinity, repro flags)",
-            "7. iterate: session end -> tcm_analyze_runtime + "
-            "dock_analyze_runtime; new findings -> *_report_insight"],
+            "7. iterate: read the iteration packet, call "
+            "tcm_self_iterate(action=review), and apply or reject only "
+            "ids the user names. Accepted notes append to "
+            "references/runtime_lessons.md and do not change tool code",
+            "8. topology: read the analysis topology in the smart-run "
+            "result, or call tcm_analysis_topology(session_id) to redraw "
+            "the SVG and Mermaid map of libraries, literature, and the "
+            "formula index"],
         "modules": MODULES,
         "tool_inventory": {
             "retrieval_screening (M1-M4)": tcm_tools,
@@ -309,6 +324,16 @@ async def unified_overview() -> str:
                                     "translational context, not efficacy "
                                     "proof)",
                 "tools": p2_tools},
+            "self_iteration": {
+                "tcm_self_iterate": "review local runtime evidence, then "
+                                    "append or dismiss a lesson only for "
+                                    "ids the user names",
+                "tools": iteration_tools},
+            "analysis_topology": {
+                "tcm_analysis_topology": "redraw the live herb-compound-"
+                                         "target-pathway network and the "
+                                         "step status strip from a session",
+                "tools": topology_tools},
             "bootstrap": {
                 "tcm_dependency_status": "dependency health check with "
                                          "impact analysis + opt-in "
@@ -325,7 +350,8 @@ async def unified_overview() -> str:
                               "never cached"},
             "transfer_notes": (_tcm_skip + _dock_skip + _smart_skip +
                               _parallel_skip + _lit_skip + _rescore_skip +
-                              _p1_skip + _p2_skip + _bootstrap_skip)
+                              _p1_skip + _p2_skip + _bootstrap_skip +
+                              _iteration_skip + _topology_skip)
                               or "all tools transferred"},
         "state_health": {
             "retrieval_state": _state_snapshot(_tcm_mod.STATE_DIR),

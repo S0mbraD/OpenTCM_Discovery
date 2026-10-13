@@ -1,6 +1,6 @@
 # 架构说明
 
-本仓库以统一 MCP 服务器承载 54 个工具，按职责分层。核心模块归属、执行链路与数据流如下。
+本仓库以统一 MCP 服务器承载 56 个工具，按职责分层。核心模块归属、执行链路与数据流如下。
 
 ## 1. 模块分层
 
@@ -20,7 +20,7 @@ mcp_server/
 
 各层文件各自用 `@mcp.tool` 注册，彼此不 import。`unified_mcp.py` 加载它们，把工具拷到同一个服务器，并把函数表交给执行引擎，进程内直接调用。19 个只读检索工具在转交时包一层 SQLite 缓存。
 
-单独运行 `open_tcm_discovery_mcp.py` 只得到检索族，HTTP 端口默认 8000。54 工具的入口是 `unified_mcp.py`，HTTP 端口默认 8002。
+单独运行 `open_tcm_discovery_mcp.py` 只得到检索族，HTTP 端口默认 8000。56 工具的入口是 `unified_mcp.py`，HTTP 端口默认 8002。
 
 ## 2. 两条运行时
 
@@ -75,14 +75,15 @@ mcp_server/
 
 ## 5. 质量与自迭代
 
-- 提交前运行 `python scripts/check_repo.py`。它检查语法、54 个工具名和文档口径，不访问网络。
+- 提交前运行 `python scripts/check_repo.py`。它检查语法、56 个工具名和文档口径，不访问网络。
 - 在线行为的历史记录在 `mcp_server/evaluation.xml`。新增对外行为时补可复核的观察，不把推断值写进基准。
-- 运行时遥测和人工确认的洞察写入 `~/.tcm_mcp_state/`，供后续会话参考。
+- 运行时遥测和人工确认的洞察写入 `~/.tcm_mcp_state/`。`tcm_self_iterate` 只在用户点名后把观察追加到 `references/runtime_lessons.md`，不改工具行为。
+- `tcm_smart_run` 每一步重画分析网络。`tcm_analysis_topology` 按会话输出 Mermaid 和 SVG，标出数据库、文献库、方剂索引和步骤状态。
 
 ## 6. 演进路线
 
 - v1.x：数据与工作流（分子库 → DAG 引擎）
 - v2.x：MCP 化与平台化（双传输、LiveScreening、17 工具）
-- v3.x：统一技能（54 工具）与开源化
+- v3.x：统一技能（56 工具）与开源化
 
 版本细节见 [CHANGELOG.md](../CHANGELOG.md)，工具索引见 [modules/MODULE_INDEX.md](../modules/MODULE_INDEX.md)。
