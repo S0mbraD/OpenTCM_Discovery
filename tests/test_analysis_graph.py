@@ -5,10 +5,24 @@ import re
 import unittest
 
 from tcm_core.analysis_graph import (
+    CARD_PAPER,
+    DOCK_NOTE,
     FORMULA_NOTE,
+    INK,
     LIT_NOTE,
+    PAPER_BG,
     SCREEN_NOTE,
+    SHELL_AMBER,
     SPHERE_ENTITY_THRESHOLD,
+    STATUS_DEFERRED,
+    STATUS_DONE,
+    STATUS_FAILED,
+    STATUS_PENDING,
+    STATUS_READY,
+    STATUS_SKIPPED,
+    TRIAL_NOTE,
+    WOOD,
+    WOOD_DARK,
     AnalysisGraph,
     build_from_session,
     cross_kind_arcs,
@@ -335,6 +349,191 @@ class AnalysisGraphTests(unittest.TestCase):
         dst = scene["centers"][dst_kind]
         self.assertAlmostEqual(math.hypot(x1 - src[0], y1 - src[1]), src[2] + 2, delta=1.5)
         self.assertAlmostEqual(math.hypot(x2 - dst[0], y2 - dst[1]), dst[2] + 2, delta=1.5)
+
+    def test_warm_palette_locked_in_svg_and_html(self):
+        graph = AnalysisGraph()
+        graph.upsert("disease", "colitis", "ready", detail="queued")
+        graph.upsert("gene", "TNF", "done", detail="hub marker")
+        graph.upsert("compound", "berberine", "failed", detail="channel down")
+        graph.upsert("herb", "黄连", "pending", detail="waiting")
+        graph.upsert("pathway", "NOD", "skipped", detail="not run")
+        graph.upsert("formula", "成分集合", "deferred", detail="later")
+        graph.link("disease", "colitis", "gene", "TNF", "associated_with", "done")
+        graph.link("gene", "TNF", "compound", "berberine", "recorded_in", "failed")
+        graph.link("herb", "黄连", "formula", "成分集合", "contains", "pending")
+        graph.link("pathway", "NOD", "gene", "TNF", "member_of", "skipped")
+        graph.link("disease", "colitis", "pathway", "NOD", "associated_with", "ready")
+        graph.link("formula", "成分集合", "herb", "黄连", "contains", "deferred")
+        svg = graph.to_svg()
+        page = graph.to_html(svg)
+        for color in (
+            PAPER_BG, CARD_PAPER, INK, WOOD, WOOD_DARK,
+            STATUS_READY, STATUS_PENDING, STATUS_DONE,
+            STATUS_FAILED, STATUS_SKIPPED, STATUS_DEFERRED,
+        ):
+            self.assertIn(color, svg)
+            self.assertIn(color, page)
+        self.assertNotIn("#121418", svg)
+        self.assertNotIn("#8eb4d0", svg)
+        for phrase in (LIT_NOTE, FORMULA_NOTE, TRIAL_NOTE, SCREEN_NOTE, DOCK_NOTE):
+            self.assertIn(phrase, svg)
+            self.assertIn(phrase, page)
+        self.assertIn('class="reading-legend"', svg)
+        self.assertIn('class="reading-pathway"', page)
+        self.assertIn("状态不只靠颜色", page)
+        self.assertIn("Microsoft YaHei, sans-serif", svg)
+        self.assertIn("Microsoft YaHei", page)
+        self.assertIn("hub marker", svg)
+        self.assertNotIn("<script", page.lower())
+        self.assertNotIn("cdn", page.lower())
+        self.assertNotIn("three.js", page.lower())
+        ready = re.search(r'<path class="edge edge-ready"[^>]*>', svg)
+        deferred = re.search(r'<path class="edge edge-deferred"[^>]*>', svg)
+        failed = re.search(r'<path class="edge edge-failed"[^>]*>', svg)
+        pending = re.search(r'<path class="edge edge-pending"[^>]*>', svg)
+        done = re.search(r'<path class="edge edge-done"[^>]*>', svg)
+        skipped = re.search(r'<path class="edge edge-skipped"[^>]*>', svg)
+        self.assertIsNotNone(ready)
+        self.assertIsNotNone(deferred)
+        self.assertIn('stroke-dasharray="9 5"', ready.group(0))
+        self.assertIn('stroke-dasharray="2 7"', deferred.group(0))
+        self.assertNotIn("stroke-dasharray", failed.group(0))
+        self.assertIn("stroke-dasharray", pending.group(0))
+        self.assertNotIn("stroke-dasharray", done.group(0))
+        self.assertNotIn("stroke-dasharray", skipped.group(0))
+        self.assertIn("edge-flow", svg)
+        self.assertIn("marker-end", svg)
+
+    def test_reading_block_tracks_chain_and_gaps(self):
+        empty = AnalysisGraph()
+        empty_path = "\n".join(empty.pathway_lines())
+        empty_next = "\n".join(empty.next_step_lines())
+        chain = "疾病（缺） → 通路（缺） → 基因（缺） → 成分（缺） → 药材（缺）"
+        self.assertIn(chain, empty_path)
+        self.assertIn(chain, empty.to_svg())
+        self.assertIn(chain, empty.to_html())
+        self.assertIn("文献：缺失", empty_path)
+        self.assertIn("对接：缺失。文献未写明口袋", empty_path)
+        self.assertIn("药材少于 2 个，不算集合重叠", empty_path)
+        self.assertIn("tcm_kegg_disease_pathways", empty_next)
+        self.assertIn("tcm_tcmsp_search", empty_next)
+        self.assertNotIn("tcm_formula_analysis", empty_next)
+        self.assertNotIn("dock_", empty_next)
+        self.assertIn("不会自动执行", empty_next)
+        self.assertIn("图例", "\n".join(empty.summary_lines()))
+
+        one = AnalysisGraph()
+        one.note_intent(herbs=["黄连"])
+        one.seed_sources()
+        one.upsert("source", "herb_index", "failed")
+        one_text = "\n".join(one.reading_lines())
+        self.assertIn("药材（有节点，缺与成分的边）", one_text)
+        self.assertIn("tcm_tcmsp_search", one_text)
+        self.assertNotIn("tcm_formula_analysis", one_text)
+        self.assertIn("药材少于 2 个，不算集合重叠", one_text)
+        self.assertIn("失败", one_text)
+
+        two = AnalysisGraph()
+        two.note_intent(herbs=["黄连", "黄芩"])
+        self.assertIn("尚未算出重叠", "\n".join(two.pathway_lines()))
+        self.assertIn("tcm_formula_analysis", "\n".join(two.next_step_lines()))
+        two.observe({
+            "tool": "tcm_formula_analysis",
+            "status": "ok",
+            "result": {
+                "herbs_matched": {"黄连": {}, "黄芩": {}},
+                "pairwise_ingredients": [{
+                    "pair": "黄连 + 黄芩", "jaccard": 0.02,
+                }],
+            },
+        })
+        self.assertIn("已写入", "\n".join(two.pathway_lines()))
+        self.assertNotIn("尚未算出重叠", "\n".join(two.pathway_lines()))
+        self.assertNotIn("tcm_formula_analysis", "\n".join(two.next_step_lines()))
+
+        linked = AnalysisGraph()
+        linked.note_intent(disease="colitis")
+        linked.upsert("pathway", "hsa04621", "done", label="NOD")
+        linked.upsert("gene", "TNF", "done")
+        linked.link("disease", "colitis", "pathway", "hsa04621",
+                    "associated_with", "done")
+        linked.link("pathway", "hsa04621", "gene", "TNF", "member_of", "done")
+        linked_path = "\n".join(linked.pathway_lines())
+        self.assertIn("通路（已连接，完成）", linked_path)
+        self.assertIn("基因（已连接，完成）", linked_path)
+        self.assertIn("成分（缺）", linked_path)
+        self.assertNotIn("疾病（缺）", linked_path)
+        self.assertNotEqual(empty_path, linked_path)
+
+    def test_failed_source_stays_in_the_reading_block(self):
+        graph = AnalysisGraph()
+        graph.seed_sources()
+        graph.upsert("source", "chembl", "failed")
+        text = "\n".join(graph.source_status_lines())
+        self.assertIn("失败：ChEMBL", text)
+        self.assertIn("ChEMBL（失败）", text)
+        self.assertIn("缺失：无", text)
+        self.assertIn("失败：ChEMBL", "\n".join(graph.summary_lines()))
+        svg = graph.to_svg()
+        page = graph.to_html(svg)
+        self.assertIn("失败：ChEMBL", svg)
+        self.assertIn("失败：ChEMBL", page)
+        self.assertIn("tcm_cross_database_screen", "\n".join(graph.next_step_lines()))
+
+    def test_docking_hint_requires_a_literature_pocket(self):
+        graph = AnalysisGraph()
+        graph.note_intent(disease="colitis", compounds=["berberine"])
+        graph.upsert("literature", "PubMed", "done",
+                     detail=f"full_triple=1; {LIT_NOTE}")
+        self.assertNotIn("dock_", "\n".join(graph.next_step_lines()))
+        self.assertIn("文献未写明口袋", "\n".join(graph.pathway_lines()))
+        graph.upsert("literature", "PubMed", "done", detail="文献口袋残基 I46,I52")
+        hinted = "\n".join(graph.reading_lines())
+        self.assertIn("dock_vina_docking", hinted)
+        self.assertIn(DOCK_NOTE, hinted)
+        self.assertIn("文献写明口袋", hinted)
+
+    def test_reading_markup_escapes_labels(self):
+        graph = AnalysisGraph()
+        graph.seed_sources()
+        graph.upsert("source", "chembl", "failed", label="ChEMBL<x>")
+        graph.note_intent(disease="A<B")
+        svg = graph.to_svg()
+        page = graph.to_html(svg)
+        self.assertIn("ChEMBL&lt;x&gt;", svg)
+        self.assertIn("A&lt;B", svg)
+        self.assertIn("ChEMBL&lt;x&gt;", page)
+        self.assertNotIn("ChEMBL<x>", svg.split(">", 1)[-1])
+        self.assertNotIn("ChEMBL<x>", page)
+        self.assertNotIn("A<B", svg.split(">", 1)[-1])
+
+    def test_sphere_shell_uses_warm_amber(self):
+        self.assertEqual(SPHERE_ENTITY_THRESHOLD, 300)
+        graph = AnalysisGraph()
+        _put_nodes(graph, "gene", 300)
+        self.assertEqual(len(graph.entity_nodes()), 300)
+        self.assertEqual(graph.view_mode(), "球面")
+        svg = graph.to_svg()
+        page = graph.to_html(svg)
+        self.assertIn(SHELL_AMBER, svg)
+        self.assertIn(PAPER_BG, svg)
+        self.assertIn('data-mode="sphere"', svg)
+        self.assertNotIn("#121418", svg)
+        self.assertNotIn("#8eb4d0", svg)
+        self.assertIn("图例", page)
+        self.assertIn("检索通路", page)
+        self.assertNotIn("<script", page.lower())
+
+    def test_summary_text_is_what_topology_and_smart_run_emit(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        topo = (root / "mcp_server" / "topology_layer.py").read_text(encoding="utf-8")
+        smart = (root / "mcp_server" / "smart_layer.py").read_text(encoding="utf-8")
+        self.assertIn("summary_lines()", topo)
+        self.assertIn("summary_lines()", smart)
+        text = "\n".join(AnalysisGraph().summary_lines())
+        for heading in ("图例", "检索通路", "下一步建议", "数据源状态"):
+            self.assertIn(heading, text)
 
 
 def _put_nodes(graph, kind, count, label=None, status="done"):

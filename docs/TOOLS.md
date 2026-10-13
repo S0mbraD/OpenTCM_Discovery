@@ -1,6 +1,8 @@
 # 工具总表
 
-统一入口 `mcp_server/unified_mcp.py` 注册下面 63 个工具。带参调用使用 `{"params": {...}}`。只读检索的响应带 `source` 与 `queried_at`。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
+统一入口 `mcp_server/unified_mcp.py` 注册下面 64 个工具。带参调用使用 `{"params": {...}}`。漏了 `params`，返回的是校验错误。只读检索的响应带 `source` 与 `queried_at`。失败时看 `error`，或正文是否以 `Error:` 开头。空列表表示这次没有行。字段细节以各工具 docstring 为准；模块级决策见 `modules/`。
+
+下面各表只说明工具实际做什么，以及返回里先看哪几个字段。不要把工具名写成结论。单独运行 `open_tcm_discovery_mcp.py` 只有检索族，HTTP 默认端口是 8000。64 个工具要跑统一入口，HTTP 默认 `127.0.0.1:8002`。推荐接法是 stdio。
 
 ## 智能层（8）
 
@@ -13,11 +15,13 @@
 | `tcm_cache_status` | 查看或清空只读检索缓存 |
 | `tcm_classify_structure` | 用 RDKit SMARTS 给 SMILES 做结构大类分类；无 RDKit 时退回字符串启发 |
 | `tcm_self_iterate` | 复核本地运行观察。`action=apply` 或 `reject` 只处理用户点名的 id，并只追加 `references/runtime_lessons.md` |
-| `tcm_analysis_topology` | 按会话重画分析网络和执行状态。小图是圆角卡片，实体节点满 300 后改为按类别分组的球面。输出 Mermaid、SVG 和自包含 HTML |
+| `tcm_analysis_topology` | 按会话重画分析网络和执行状态。实体节点少于 300 个时是圆角卡片，到 300 个按种类收成球壳。输出 Mermaid、SVG 和自包含 HTML |
+
+`tcm_smart_run` 先看 `status`。`paused` 时读 `needs` 和 `session_id`，不要猜口袋残基。`deferred scripts` 里的命令这次没跑。`tcm_smart_plan` 只有步骤表。`tcm_analysis_topology` 的图例、检索通路、下一步建议和数据源状态是给智能体读的进度，不是疗效。步骤节点不计入那 300 个实体节点。浅暖宣纸底、木色边框。`tcm_self_iterate` 在用户点名之前不会改 `references/runtime_lessons.md`。
 
 ## 检索、网络与自迭代（27）
 
-实现在 `open_tcm_discovery_mcp.py`。单独运行该文件不会带上其余 27 个工具。
+实现在 `open_tcm_discovery_mcp.py`。单独运行该文件不会带上其余工具，HTTP 默认端口是 8000。`tcm_check_database_status` 在 `refresh` 为 false 时返回保存的探测表，看 `snapshot_date`。这不是每个网站的现场状态。`tcm_cross_database_screen` 的共识分是几个库同时查到了该实体。化合物模式走 PubChem、ChEMBL 和 SymMap。基因模式走 STRING、Open Targets、SymMap 和 Pharos。它不把预测靶点计成已记录的相互作用。某个通道失败时，该通道是 `error`，不要把它算成「这个库收录了」。
 
 | 工具 | 作用 |
 |---|---|
@@ -62,6 +66,8 @@
 | `dock_analyze_runtime` | 对接实验台账与复现检查 |
 | `dock_compare_experiments` | 按配体或受体对照历史台账 |
 
+`dock_vina_docking` 和 `dock_analyze_contacts` 的输出是提议的对接模型。没有文献口袋就不要调用。接触残基若只在计算里出现，报告里加 `*`，接触画虚线。`dock_check_environment` 用来看 Vina、Meeko、PyMOL、RDKit 各自是否可用，以及 Vina 解析到了哪条路径。环境缺一项时，检索工具不受影响。
+
 ## 并行层（4）
 
 | 工具 | 作用 |
@@ -70,6 +76,8 @@
 | `tcm_network_simulation` | 活网络上的敲除、累积敲除和蒙特卡洛对照 |
 | `dock_batch_screening` | 单受体、多配体的快速对接分诊，默认 exhaustiveness 4 |
 | `tcm_multi_path_run` | 2–8 个候选并行走共识、ADME 和可选对接，再做启发式排名 |
+
+`tcm_network_simulation` 的 z-score 是拓扑扰动，不是基因必需性。`tcm_adme_profile` 的 Lipinski、Veber、Egan 和 QED 不要和 TCMSP 的 OB、DL 写成同一道门。没装 RDKit 时，描述符算不出来，返回里会说明缺依赖，不会填一组看起来完整的数。
 
 ## 证据与出图（4）
 
@@ -80,6 +88,8 @@
 | `dock_rescore` | 用亲和能谱和口袋锚定率对批量对接做启发式精排 |
 | `tcm_network_figure` | 3200×2200 网络图，固定 seed 的自研力导向布局 |
 
+`tcm_literature_mine` 至少要有基因或疾病之一，只给成分名会报错。计数字段是命中篇数。`tcm_formula_analysis` 看 `herbs_matched`、`herbs_missing` 和 `pairwise_ingredients` 里的 `jaccard`、`overlap_coeff`。索引找不到，或对上的药材少于两味，正文以 `Error:` 开头。高重叠那一档的标签字面是「功效相近」，仍是集合重叠，不是药效。
+
 ## P1 与 P2（4）
 
 | 工具 | 作用 |
@@ -89,6 +99,8 @@
 | `tcm_admet_predict` | ESOL、BBB、PPB、Caco-2、hERG 的本地近似 |
 | `tcm_trials_match` | ClinicalTrials.gov 试验数、分期和 NCT。转化上下文，不是疗效证明 |
 
+`tcm_admet_predict` 的每一项都带着近似模型的名字，不要写成实测 ADMET。`tcm_trials_match` 先看试验总数和分期，再看 NCT。命中试验不说明该中药成分有效。`tcm_scrna_channel` 只有数据集编号和实验设计，没有表达矩阵。`tcm_graph_embed` 是与种子基因的余弦相似度，不是功能验证。
+
 ## 自举（1）
 
 | 工具 | 作用 |
@@ -97,7 +109,9 @@
 
 ## 数据整理（6）
 
-这些工具在本地运行，不访问网络。整理结果用来准备下一步检索。别名、MeSH 对照和剂量比例都不是靶点收录，也不是疗效。
+这些工具在本地运行，不访问网络，也不进入 `tcm_smart_run` 的自动链。整理结果用来准备下一步检索。别名、MeSH 对照和剂量比例都不是靶点收录，也不是疗效。
+
+`tcm_convert_dose` 必须点名 `convention`：`metric`、`market_1959`、`han_tang`、`song_yuan_2025`、`ming_qing_2025`、`song_jin_yuan_2024`、`ming_qing_2024`。不写就报错，不会默认成某一个「两」。`market_1959` 的一两是 50 g，那是市秤。其余几套是各自文献里的古方折算，克数不一样。毫升和升不会换成克。返回看 `grams`、`ratio_to_min` 和 `citation`。`tcm_normalize_genes` 的家族名留在 `ambiguous`。`tcm_normalize_disease` 对不上时是 unmapped、ambiguous 或 nonspecific，不会编一个 MeSH 号。
 
 | 工具 | 作用 |
 |---|---|
@@ -114,6 +128,18 @@
 |---|---|
 | `tcm_tcmsp_search` | 读 TCMSP 旧站的药材表和成分表。`ob_dl_filter` 只筛本页的 OB、DL。不是疗效，这一页没有靶点 |
 
+调用时看 `query`。多行药材要给 `latin_name`，否则 `ingredients` 为空，药材行留在 `herbs`。成功时看 `ingredients`、`ingredients_matched`、`queried_at`。`ob_dl_filter` 默认关闭。打开后丢掉的行数在 `ob_dl_dropped`，门槛只用于本页 `ob`、`dl`。超时 20 秒，超时或 HTTP 5xx 再试一次。请求没完成时有 `error`，不补成分。
+
+## 成分名对齐（1）
+
+这个工具在本地运行，不访问网络，也不读 `data/herb_mol_index.json`，不进入自动链，也不进只读缓存。名称相同不是结构相同。InChIKey 全键相同只说明调用方给出的字符串一致。`ob`、`dl` 原样抄自 TCMSP 行，这里不筛选。结果不是靶点收录，也不是疗效。
+
+返回先看 `n_matches`、`n_ambiguous` 和 `matches` 里的 `link`。`link` 只有 `inchikey`、`inchikey_block`、`mol_id`、`name`。`ambiguous` 里的行不要挑一条当成对上了。`ob_dl_filter_applied` 是 false。没有 `queried_at`。任一侧是空的，或单侧超过 2000 行，会报错。表里没有成分名、MOL_ID 或 InChIKey 列，也会报错。
+
+| 工具 | 作用 |
+|---|---|
+| `tcm_align_tcmsp` | 把已有 TCMSP 成分行和调用方的名称、InChIKey 表对齐。先看全键，再看不冲突的 MOL_ID，再看连接层，最后看名称 |
+
 ## 缓存
 
-下列 20 个工具的成功响应进入 TTL 缓存：`tcm_pubchem_lookup`、`tcm_kegg_compound`、`tcm_chembl_lookup`、`tcm_ensembl_lookup`、`tcm_search_disease_targets`、`tcm_string_ppi`、`tcm_tcmbank_search`、`tcm_ctd_gene_interactions`、`tcm_get_gene_info`、`tcm_ncbi_gene_search`、`tcm_enrichment_analysis`、`tcm_npass_search_compound`、`tcm_get_structure`、`tcm_dgidb_interactions`、`tcm_gwas_associations`、`tcm_symmap_lookup`、`tcm_kegg_disease_pathways`、`tcm_wikidata_lookup`、`tcm_uniprot_idmap`、`tcm_tcmsp_search`。
+下列 20 个工具的成功响应进入 TTL 缓存。报错不进缓存。成分名对齐和六个整理工具不在这份名单里。命中缓存时，`queried_at` 仍是当初那次查询的时间。`tcm_pubchem_lookup`、`tcm_kegg_compound`、`tcm_chembl_lookup`、`tcm_ensembl_lookup`、`tcm_search_disease_targets`、`tcm_string_ppi`、`tcm_tcmbank_search`、`tcm_ctd_gene_interactions`、`tcm_get_gene_info`、`tcm_ncbi_gene_search`、`tcm_enrichment_analysis`、`tcm_npass_search_compound`、`tcm_get_structure`、`tcm_dgidb_interactions`、`tcm_gwas_associations`、`tcm_symmap_lookup`、`tcm_kegg_disease_pathways`、`tcm_wikidata_lookup`、`tcm_uniprot_idmap`、`tcm_tcmsp_search`。

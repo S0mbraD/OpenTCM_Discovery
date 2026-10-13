@@ -3,7 +3,8 @@
 
 Combines the retrieval/analysis tool family (27 tools) and the
 docking/modeling tool family (8 tools) with the intelligence, parallel,
-evidence, P1, P2, bootstrap, iteration, topology, prep, and TCMSP layers into one 63-tool server:
+evidence, P1, P2, bootstrap, iteration, topology, prep, TCMSP, and local
+alignment layers into one 64-tool server:
 
   unified_overview  - first-contact orientation: modules, tool inventory,
                       state health, quick-start protocol
@@ -58,6 +59,7 @@ ITERATION_IMPL = BASE / "iteration_layer.py"
 TOPOLOGY_IMPL = BASE / "topology_layer.py"
 PREP_IMPL = BASE / "prep_layer.py"
 TCMSP_IMPL = BASE / "tcmsp_layer.py"
+ALIGN_IMPL = BASE / "align_layer.py"
 
 # ================= submodule loading + tool transfer =================
 
@@ -104,6 +106,7 @@ _iteration_mod = _load_module(ITERATION_IMPL, "tcm_unified_impl_iteration")
 _topology_mod = _load_module(TOPOLOGY_IMPL, "tcm_unified_impl_topology")
 _prep_mod = _load_module(PREP_IMPL, "tcm_unified_impl_prep")
 _tcmsp_mod = _load_module(TCMSP_IMPL, "tcm_unified_impl_tcmsp")
+_align_mod = _load_module(ALIGN_IMPL, "tcm_unified_impl_align")
 
 # transparent response cache on read-only retrieval tools (schema unchanged;
 # original queried_at preserved inside cached responses)
@@ -130,6 +133,7 @@ _ITERATION_TOOLS, _iteration_skip = _transfer_tools(_iteration_mod.mcp)
 _TOPOLOGY_TOOLS, _topology_skip = _transfer_tools(_topology_mod.mcp)
 _PREP_TOOLS, _prep_skip = _transfer_tools(_prep_mod.mcp)
 _TCMSP_TOOLS, _tcmsp_skip = _transfer_tools(_tcmsp_mod.mcp, cache_wrap=_maybe_cache)
+_ALIGN_TOOLS, _align_skip = _transfer_tools(_align_mod.mcp)
 
 # expose underlying fns to the execution engines (smart_layer.tcm_smart_run,
 # parallel_layer, lit_formula_layer call them directly; includes the
@@ -261,6 +265,8 @@ async def unified_overview() -> str:
     iteration_tools = sorted(_ITERATION_TOOLS)
     topology_tools = sorted(_TOPOLOGY_TOOLS)
     prep_tools = sorted(_PREP_TOOLS)
+    tcmsp_tools = sorted(_TCMSP_TOOLS)
+    align_tools = sorted(_ALIGN_TOOLS)
     return _fmt({
         "skill": "open-tcm-discovery (unified: retrieval + analysis + "
                  "docking + execution engine)",
@@ -355,6 +361,14 @@ async def unified_overview() -> str:
                 "tcm_convert_dose": "grams under a named metrology; "
                                     "weight ratio is not efficacy",
                 "tools": prep_tools},
+            "tcmsp_legacy": {
+                "tcm_tcmsp_search": "legacy herb and ingredient tables "
+                                    "with ob and dl; not targets",
+                "tools": tcmsp_tools},
+            "tcmsp_local_align": {
+                "tcm_align_tcmsp": "join caller-supplied TCMSP rows to a "
+                                   "name and InChIKey table; no network",
+                "tools": align_tools},
             "bootstrap": {
                 "tcm_dependency_status": "dependency health check with "
                                          "impact analysis + opt-in "
@@ -372,7 +386,8 @@ async def unified_overview() -> str:
             "transfer_notes": (_tcm_skip + _dock_skip + _smart_skip +
                               _parallel_skip + _lit_skip + _rescore_skip +
                               _p1_skip + _p2_skip + _bootstrap_skip +
-                              _iteration_skip + _topology_skip + _prep_skip)
+                              _iteration_skip + _topology_skip + _prep_skip +
+                              _tcmsp_skip + _align_skip)
                               or "all tools transferred"},
         "state_health": {
             "retrieval_state": _state_snapshot(_tcm_mod.STATE_DIR),

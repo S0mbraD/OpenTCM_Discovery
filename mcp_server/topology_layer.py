@@ -69,7 +69,9 @@ async def tcm_analysis_topology(params: AnalysisTopologyInput) -> str:
 
     Returns:
         str: counts, the current view (卡片 or 球面), pending tasks,
-        a Mermaid graph, and the SVG and HTML paths.
+        a legend, the retrieval chain (which hops are linked and which
+        are missing), up to three next-step hints, source status, a
+        Mermaid graph, and the SVG and HTML paths. Hints are not executed.
     '''
     if not re.fullmatch(r"[A-Za-z0-9_-]+", params.session_id):
         return "Error: session_id 只能包含字母、数字、下划线和连字符。"

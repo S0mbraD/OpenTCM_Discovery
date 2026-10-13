@@ -1,5 +1,5 @@
 {
-  "_readme": "MCP 客户端配置模板。日常使用方案 B（stdio）或方案 A（统一入口的 StreamableHTTP，默认 8002）。把 <REPO> 换成仓库绝对路径。不要把 open_tcm_discovery_mcp.py 当作 63 工具入口。",
+  "_readme": "MCP 客户端配置模板。日常使用方案 B（stdio）或方案 A（统一入口的 StreamableHTTP，默认 8002）。把 <REPO> 换成仓库绝对路径。不要把 open_tcm_discovery_mcp.py 当作 64 工具入口。",
   "_scheme_A_StreamableHTTP": {
     "说明": "先启动统一服务器，再注册 URL。PowerShell：$env:PYTHONUTF8='1'; python '<REPO>\\mcp_server\\unified_mcp.py' --port 8002",
     "mcpServers": {

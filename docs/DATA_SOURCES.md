@@ -1,6 +1,6 @@
 # 数据来源
 
-这张表区分三件事：数据库现在公开提供什么，本仓库是否在工具里直接请求它，以及结果在证据上属于哪一层。探测日期写在每一节里。2026 年 9 月 22 日的端点快照仍保留在 `references/database_availability_2026-09.md`，那里记录的是当时的 HTTP 结果，不是数据库论文里的宣称。
+这张表区分三件事：数据库现在公开提供什么，本仓库是否在工具里直接请求它，以及结果在证据上属于哪一层。探测日期写在每一节里。2026 年 9 月 22 日的端点快照仍保留在 `references/database_availability_2026-09.md`，那里记录的是当时的 HTTP 结果，不是数据库论文里的宣称，也不是现在该走哪个 TCMSP 地址。当前成分表接法以下面 2026-10-13 的探测为准。不要去改那份九月快照来追当前状态。
 
 文献依据包括：Wu 等对 SymMap 的介绍（Nucleic Acids Research, 2019, 47(D1): D1110–D1117）；HERB 2.0（Nucleic Acids Research, 2025, 53(D1): D1404）；BATMAN-TCM 2.0（Nucleic Acids Research, 2024, doi:10.1093/nar/gkad926）；对中药数据库预测靶点的评估（Frontiers in Pharmacology, 2024, 1303693）；以及对网络药理学中盲对接的批评（Frontiers in Pharmacology, 2025, 1566772）。
 
@@ -67,8 +67,16 @@
 
 这次能同时给出 TCMSP 成分、`ob` 和 `dl` 的，只有旧站。`www.tcmsp-e.com` 上的 `tcmsp.php` / `tcmspsearch.php` 已经不再返回那张表。`tcmspw.com` 连不上。ETCM 和 HERB 的上述请求能复现，但它们的数字不是 TCMSP 的口服生物利用度和类药性，不能拿来当 0.18 这道门。BATMAN-TCM 这次没有返回可解析正文。所以工具只请求旧站。
 
-`tcm_tcmsp_search` 每次重新取 token。超时 20 秒。超时或 HTTP 5xx 再试一次。页面里没有表格、或请求失败时，`ingredients` 为空，不补记录。响应带 `source` 和 `queried_at`。打开 `ob_dl_filter` 时只保留本页 `ob≥30` 且 `dl≥0.18` 的行。检索结果不是疗效。成分行不是靶点收录。
+`tcm_tcmsp_search` 每次重新取 token。超时 20 秒。超时或 HTTP 5xx 再试一次。页面里没有表格、或请求失败时，`ingredients` 为空，不补记录。响应带 `source` 和 `queried_at`。打开 `ob_dl_filter` 时只保留本页 `ob≥30` 且 `dl≥0.18` 的行，丢掉的行数在 `ob_dl_dropped`。这个开关默认关闭。检索结果不是疗效。成分行不是靶点收录。
+
+读这一次的 JSON 时，先看 `error` 是不是空的，再看 `herbs` 有几行。多行且没有 `latin_name` 时，`note` 会说明要你指定 `herb_en_name`，成分表不会替你选一行。只有一行时，工具用那一行的 `herb_en_name` 继续取成分。成分行里用得到的是 `molecule_name`、`MOL_ID`、`ob`、`dl`。`limit` 只截断返回的行数，`ingredients_matched` 仍是筛完之后的总数。HERB 详情里的类药性、ETCM 返回的分子量，都不能填进这几个字段，也不能拿去和 0.18 比较。
+
+`tcm_align_tcmsp` 不请求上面任何一个地址。它只对齐调用方已经拿到的成分行，以及调用方自己的名称和 InChIKey。`data/herb_mol_index.json` 没有这些名称，所以不对着那份索引做。返回里没有 `queried_at`。`link` 为 `name` 或 `inchikey` 都只是字符串相同。对不齐的行在 `tcmsp_unmatched` 或 `catalog_unmatched`，含糊的在 `ambiguous`。不要把对不齐写成「该成分不存在」。
+
+其他在线工具也按同一习惯读。成功时保留 `source` 和 `queried_at`。通道级失败放在该通道的 `error` 里，不要把失败通道算进共识分。`tcm_check_database_status` 在 `refresh` 为 false 时给出保存的探测表，看 `snapshot_date`。那张表不是本节这张 2026-10-13 的 URL 对照，也不能代替正式分析前的再探。`refresh` 为 true 时只重探一小部分关键端点。
+
+文献共现、方剂集合重叠、试验登记、图嵌入、敲除和 ADMET 近似都不占用上面的数据库记录名额，也不构成疗效。预测靶点即使来自某个库的预测列，也不是已记录证据。本仓库还没有一个工具去读调用方标好的 `recorded` / `predicted` 列，那是路线图里还没做的阶段。
 
 ## 计算层，不占用数据库名额
 
-RDKit 描述符、ESOL 水溶性近似、血脑屏障与 hERG 的盒式规则、图嵌入、网络敲除和 Vina，都是计算预测。ADMETlab 的在线接口在先前探测中不可用，因此 ADMET 面板全部在本地计算并标明模型名称。HPA 与 GTEx 的相关接口当时失败，单细胞工具只到 GEO 去发现数据集，不下载表达矩阵。数据整理的六个工具不请求数据库。疾病名只对照一份写在代码里的常用 MeSH 子集，基因符号也只对照一份常见别名表。
+RDKit 描述符、ESOL 水溶性近似、血脑屏障与 hERG 的盒式规则、图嵌入、网络敲除和 Vina，都是计算预测。ADMETlab 的在线接口在先前探测中不可用，因此 ADMET 面板全部在本地计算并标明模型名称。HPA 与 GTEx 的相关接口当时失败，单细胞工具只到 GEO 去发现数据集，不下载表达矩阵。数据整理的六个工具和成分名对齐都不请求数据库。疾病名只对照一份写在代码里的常用 MeSH 子集，基因符号也只对照一份常见别名表。

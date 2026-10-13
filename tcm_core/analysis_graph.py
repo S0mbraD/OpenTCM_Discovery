@@ -7,6 +7,12 @@ SVG are pure Python so an agent can redraw the picture after every step.
 Fewer than 300 entity nodes are rounded cards. At 300 the picture
 switches to one sphere per kind. The SVG and HTML do not load scripts.
 
+The canvas is warm paper with wood-colored frames. The same reading
+block — legend, retrieval chain, next-step hints, and source status —
+is written into the SVG, the HTML, and the text summary. Hints name
+tools already in the server. They are not run automatically, and they
+are not efficacy claims.
+
 Edges record where a link was retrieved. They do not promote a
 co-occurrence count, a set overlap, or a trial listing into efficacy.
 """
@@ -70,42 +76,56 @@ _MAX = {
 }
 _MAX_EDGES = 160
 
-# Figure colors for a dark research canvas. Not evidence grades.
+# Warm paper, cream cards, ink, and wood. Status hues stay distinct.
+# Not evidence grades.
+PAPER_BG = "#f6f0e6"
+CARD_PAPER = "#fffaf3"
+INK = "#3d2b1f"
+WOOD = "#8b5e3c"
+WOOD_DARK = "#6b4423"
+SHELL_AMBER = "#e8c99a"
+SHELL_AMBER_DEEP = "#c4956a"
+STATUS_READY = "#b08968"
+STATUS_PENDING = "#c4842a"
+STATUS_DONE = "#5f8f62"
+STATUS_FAILED = "#b5453a"
+STATUS_SKIPPED = "#8a7b6b"
+STATUS_DEFERRED = "#7a4e32"
 _STATUS_COLOR = {
-    "ready": "#8eb4d0",
-    "pending": "#d7a35a",
-    "done": "#5eae86",
-    "failed": "#d07068",
-    "skipped": "#8e969e",
-    "deferred": "#a494c4",
+    "ready": STATUS_READY,
+    "pending": STATUS_PENDING,
+    "done": STATUS_DONE,
+    "failed": STATUS_FAILED,
+    "skipped": STATUS_SKIPPED,
+    "deferred": STATUS_DEFERRED,
 }
 _STATUS_PRIORITY = {
     "failed": 5, "pending": 4, "deferred": 3, "ready": 2, "done": 1, "skipped": 0,
 }
 _KIND_FILL = {
-    "source": "#1a242e",
-    "disease": "#2a2224",
-    "pathway": "#1a2824",
-    "gene": "#1a2430",
-    "compound": "#2a261c",
-    "herb": "#1a2820",
-    "formula": "#2a241e",
-    "literature": "#241e2c",
-    "trial": "#1a2628",
-    "model": "#22242a",
-    "step": "#1a1e24",
+    "source": CARD_PAPER,
+    "disease": CARD_PAPER,
+    "pathway": CARD_PAPER,
+    "gene": CARD_PAPER,
+    "compound": CARD_PAPER,
+    "herb": CARD_PAPER,
+    "formula": CARD_PAPER,
+    "literature": CARD_PAPER,
+    "trial": CARD_PAPER,
+    "model": CARD_PAPER,
+    "step": CARD_PAPER,
 }
 _KIND_NEBULA = {
-    "source": ("#d5dde6", "#7f93a8"),
-    "disease": ("#e4d4d2", "#a88880"),
-    "pathway": ("#d4e4dc", "#7eaa96"),
-    "gene": ("#d4dce8", "#8090ae"),
-    "compound": ("#e6e0d0", "#aa9870"),
-    "herb": ("#d4e6d8", "#7eaa88"),
-    "formula": ("#e6d8cc", "#aa8c74"),
-    "literature": ("#ddd6e8", "#9484aa"),
-    "trial": ("#d4e2e6", "#7aa0aa"),
-    "model": ("#e0e0e4", "#94949c"),
+    "source": ("#f4e2c4", SHELL_AMBER),
+    "disease": ("#f3d8c6", "#d2a88a"),
+    "pathway": ("#f6e6c8", SHELL_AMBER_DEEP),
+    "gene": ("#f3e0c4", SHELL_AMBER),
+    "compound": ("#f8e7c6", SHELL_AMBER_DEEP),
+    "herb": ("#efe6c8", "#c8b07a"),
+    "formula": ("#f6ddc4", "#c49868"),
+    "literature": ("#f3e2d2", "#c4a484"),
+    "trial": ("#f1e6d6", "#c4b090"),
+    "model": ("#f4e4cc", SHELL_AMBER_DEEP),
 }
 _KIND_LABEL = {
     "source": "来源库",
@@ -128,7 +148,46 @@ _ROW_GAP = 22.0
 _MARGIN_X = 16.0
 _HEADER_H = 92.0
 _MIN_WIDTH = 760.0
-_BG = "#121418"
+_BG = PAPER_BG
+_CHAIN = (
+    ("disease", "疾病"),
+    ("pathway", "通路"),
+    ("gene", "基因"),
+    ("compound", "成分"),
+    ("herb", "药材"),
+)
+_SOURCE_RETRY = {
+    "kegg": "tcm_kegg_disease_pathways",
+    "symmap": "tcm_symmap_lookup",
+    "string": "tcm_network_analysis",
+    "pubchem": "tcm_cross_database_screen",
+    "chembl": "tcm_cross_database_screen",
+    "pharos": "tcm_cross_database_screen",
+    "opentargets": "tcm_search_disease_targets",
+    "pubmed": "tcm_literature_mine",
+    "ctgov": "tcm_trials_match",
+    "herb_index": "tcm_formula_analysis",
+}
+_POCKET_MARKERS = (
+    "口袋残基",
+    "pocket_residues",
+    "pocket residue",
+    "pocket residues",
+)
+_STATUS_WORD = {
+    "ready": "就绪",
+    "pending": "进行中",
+    "done": "完成",
+    "failed": "失败",
+    "skipped": "跳过",
+    "deferred": "延后",
+}
+_READING_CLASS = {
+    "图例": "reading-legend",
+    "检索通路": "reading-pathway",
+    "下一步建议": "reading-next",
+    "数据源状态": "reading-sources",
+}
 
 
 def _slug(text: str) -> str:
@@ -615,24 +674,35 @@ class AnalysisGraph:
         picture = self.to_svg() if svg is None else svg
         mode = html.escape(self.view_mode())
         note = html.escape("这张图记录检索过程里节点和库是怎样连起来的。它不是疗效结论。")
-        return (
-            "<!DOCTYPE html>\n"
-            '<html lang="zh-CN">\n'
-            "<head>\n"
-            '<meta charset="utf-8"/>\n'
-            "<title>分析网络拓扑</title>\n"
-            "<style>\n"
-            "body{margin:0;background:#121418;color:#d5dde4;"
+        reading = _reading_html(self.reading_lines())
+        style = (
+            "body{margin:0;background:" + PAPER_BG + ";color:" + INK + ";"
             'font-family:"Microsoft YaHei",sans-serif;}\n'
-            ".note{margin:12px 16px 4px;font-size:13px;color:#9aa6b2;}\n"
-            "</style>\n"
-            "</head>\n"
-            "<body>\n"
-            f'<p class="note">{note}当前视图：{mode}。</p>\n'
-            f"{picture}\n"
-            "</body>\n"
-            "</html>\n"
+            ".note{margin:12px 16px 4px;font-size:13px;color:" + WOOD_DARK + ";}\n"
+            ".reading{margin:8px 16px 16px;padding:12px 14px;background:" + CARD_PAPER
+            + ";border:1px solid " + WOOD + ";border-radius:8px;}\n"
+            ".reading h2{font-size:15px;margin:14px 0 6px;color:" + WOOD_DARK
+            + ";font-weight:600;}\n"
+            ".reading h2:first-child{margin-top:0;}\n"
+            ".reading li{margin:2px 0;font-size:13px;line-height:1.5;}\n"
         )
+        return "".join([
+            "<!DOCTYPE html>\n",
+            '<html lang="zh-CN">\n',
+            "<head>\n",
+            '<meta charset="utf-8"/>\n',
+            "<title>分析网络拓扑</title>\n",
+            "<style>\n",
+            style,
+            "</style>\n",
+            "</head>\n",
+            "<body>\n",
+            f'<p class="note">{note}当前视图：{mode}。</p>\n',
+            reading,
+            "\n",
+            picture,
+            "\n</body>\n</html>\n",
+        ])
 
     def summary_lines(self) -> List[str]:
         counts: Dict[str, int] = {}
@@ -649,7 +719,104 @@ class AnalysisGraph:
         for task in tasks[:6]:
             lines.append(f"- 待执行 `{task['tool']}`：{task['reason']}")
         lines.append(f"- {self.to_dict()['disclaimer']}")
+        lines.extend(self.reading_lines())
         return lines
+
+    def reading_lines(self) -> List[str]:
+        """Legend, chain, hints, and sources. Same words for SVG, HTML, and text."""
+        lines: List[str] = []
+        lines.extend(self.legend_lines())
+        lines.extend(self.pathway_lines())
+        lines.extend(self.next_step_lines())
+        lines.extend(self.source_status_lines())
+        return lines
+
+    def legend_lines(self) -> List[str]:
+        order = (
+            "source", "disease", "pathway", "gene", "compound", "herb",
+            "formula", "literature", "trial", "model", "step",
+        )
+        kinds = "、".join(_KIND_LABEL[kind] for kind in order)
+        return [
+            "图例",
+            f"- 节点种类：{kinds}",
+            "- 运行状态：ready 为长虚线；pending 为等长虚线；done 为实线并带轻流动；"
+            "failed 为实线；skipped 为灰褐实线；deferred 为点线。状态不只靠颜色。",
+            f"- 关系边界：{LIT_NOTE}；{FORMULA_NOTE}；{TRIAL_NOTE}；"
+            f"{SCREEN_NOTE}；{DOCK_NOTE}。",
+        ]
+
+    def pathway_lines(self) -> List[str]:
+        parts = []
+        prev_kind = ""
+        prev_label = ""
+        for kind, label in _CHAIN:
+            nodes = _nodes_kind(self, kind)
+            if not nodes:
+                parts.append(f"{label}（缺）")
+            elif not prev_kind:
+                status = _dominant_status([node.get("status") or "ready" for node in nodes])
+                parts.append(f"{label}（图上已有，{_status_word(status)}）")
+            elif not _edges_between(self, prev_kind, kind):
+                parts.append(f"{label}（有节点，缺与{prev_label}的边）")
+            else:
+                edges = _edges_between(self, prev_kind, kind)
+                status = _dominant_status([edge.get("status") or "done" for edge in edges])
+                parts.append(f"{label}（已连接，{_status_word(status)}）")
+            prev_kind, prev_label = kind, label
+        return [
+            "检索通路",
+            "- " + " → ".join(parts),
+            _literature_line(self),
+            _formula_line(self),
+            _dock_line(self),
+        ]
+
+    def next_step_lines(self) -> List[str]:
+        lines = [
+            "下一步建议",
+            "- 这些是提示，不会自动执行，也不是疗效结论。",
+        ]
+        items = _suggest_next(self)
+        if not items:
+            lines.append("- 当前图上没有额外的下一步。")
+            return lines
+        for index, item in enumerate(items, 1):
+            lines.append(f"- {index}. `{item['tool']}`：{item['reason']}")
+        return lines
+
+    def source_status_lines(self) -> List[str]:
+        present = {node["key"]: node for node in _nodes_kind(self, "source")}
+        appeared: List[str] = []
+        failed: List[str] = []
+        missing: List[str] = []
+        seen = set()
+        for key, label, _role in SOURCE_CATALOG:
+            seen.add(key)
+            node = present.get(key)
+            if node is None:
+                missing.append(label)
+                continue
+            shown = str(node.get("label") or label)
+            status = node.get("status") if node.get("status") in _STATUS_COLOR else "ready"
+            appeared.append(f"{shown}（{_status_word(status)}）")
+            if node.get("status") == "failed":
+                failed.append(shown)
+        for key in sorted(present):
+            if key in seen:
+                continue
+            node = present[key]
+            shown = str(node.get("label") or key)
+            status = node.get("status") if node.get("status") in _STATUS_COLOR else "ready"
+            appeared.append(f"{shown}（{_status_word(status)}）")
+            if node.get("status") == "failed":
+                failed.append(shown)
+        return [
+            "数据源状态",
+            "- 已出现：" + ("、".join(appeared) if appeared else "无"),
+            "- 失败：" + ("、".join(failed) if failed else "无"),
+            "- 缺失：" + ("、".join(missing) if missing else "无"),
+        ]
 
 
 def build_from_session(state: dict) -> AnalysisGraph:
@@ -854,6 +1021,249 @@ def _dominant_status(statuses: Sequence[str]) -> str:
     return max(counts, key=lambda item: (counts[item], _STATUS_PRIORITY.get(item, 0)))
 
 
+def _status_word(status: str) -> str:
+    return _STATUS_WORD.get(status, status or "未知")
+
+
+def _nodes_kind(graph: "AnalysisGraph", kind: str) -> List[dict]:
+    return [node for node in graph.nodes.values() if node.get("kind") == kind]
+
+
+def _edges_between(graph: "AnalysisGraph", kind_a: str, kind_b: str) -> List[dict]:
+    found = []
+    for edge in graph.edges:
+        src = graph.nodes.get(edge.get("src"))
+        dst = graph.nodes.get(edge.get("dst"))
+        if not src or not dst:
+            continue
+        if {src.get("kind"), dst.get("kind")} == {kind_a, kind_b}:
+            found.append(edge)
+    return found
+
+
+def _literature_names_pocket(graph: "AnalysisGraph") -> bool:
+    lit_ids = {node["id"] for node in graph.nodes.values() if node.get("kind") == "literature"}
+    if not lit_ids:
+        return False
+    blobs = []
+    for node in graph.nodes.values():
+        if node.get("kind") != "literature":
+            continue
+        blobs.append(str(node.get("label") or ""))
+        blobs.append(str(node.get("detail") or ""))
+    for edge in graph.edges:
+        if edge.get("src") in lit_ids or edge.get("dst") in lit_ids:
+            blobs.append(str(edge.get("detail") or ""))
+    text = "\n".join(blobs).lower()
+    return any(marker.lower() in text for marker in _POCKET_MARKERS)
+
+
+def _literature_line(graph: "AnalysisGraph") -> str:
+    rows = _nodes_kind(graph, "literature")
+    if not rows:
+        return "- 文献：缺失"
+    status = _dominant_status([node.get("status") or "ready" for node in rows])
+    return f"- 文献：已出现，{_status_word(status)}。{LIT_NOTE}"
+
+
+def _formula_line(graph: "AnalysisGraph") -> str:
+    herbs = _nodes_kind(graph, "herb")
+    formula = _nodes_kind(graph, "formula")
+    overlaps = [edge for edge in graph.edges if edge.get("relation") == "set_overlap"]
+    if len(herbs) < 2:
+        return "- 方剂集合重叠：药材少于 2 个，不算集合重叠"
+    if overlaps or any(node.get("status") == "done" for node in formula):
+        statuses = [edge.get("status") or "done" for edge in overlaps] or [
+            node.get("status") or "done" for node in formula
+        ]
+        status = _dominant_status(statuses)
+        return f"- 方剂集合重叠：已写入，{_status_word(status)}。{FORMULA_NOTE}"
+    if formula:
+        status = _dominant_status([node.get("status") or "ready" for node in formula])
+        return (
+            f"- 方剂集合重叠：节点已在，尚未算出重叠，{_status_word(status)}。"
+            f"{FORMULA_NOTE}"
+        )
+    return f"- 方剂集合重叠：至少两味药材已在图上，集合节点还没有。{FORMULA_NOTE}"
+
+
+def _dock_line(graph: "AnalysisGraph") -> str:
+    models = _nodes_kind(graph, "model")
+    if models:
+        status = _dominant_status([node.get("status") or "ready" for node in models])
+        return f"- 对接：模型节点已出现，{_status_word(status)}。{DOCK_NOTE}"
+    if _literature_names_pocket(graph):
+        return f"- 对接：文献写明口袋，模型节点还没有。{DOCK_NOTE}"
+    return "- 对接：缺失。文献未写明口袋"
+
+
+def _suggest_next(graph: "AnalysisGraph") -> List[dict]:
+    """Up to three hints. Does not call tools or change scientific thresholds."""
+    out: List[dict] = []
+    seen = set()
+
+    def add(tool: str, reason: str) -> None:
+        if len(out) >= 3 or not tool or tool in seen:
+            return
+        if tool == "tcm_formula_analysis" and len(_nodes_kind(graph, "herb")) < 2:
+            return
+        if tool.startswith("dock_") and not _literature_names_pocket(graph):
+            return
+        seen.add(tool)
+        out.append({"tool": tool, "reason": reason})
+
+    for step in sorted(graph.step_nodes(), key=lambda node: node["id"]):
+        if step.get("status") != "failed":
+            continue
+        tool = str(step.get("label") or step.get("key") or "").split(" (", 1)[0].strip()
+        add(tool, "该步骤在图上是失败，可再调用一次核对。失败记录仍留在图上。")
+
+    for key, _label, _role in SOURCE_CATALOG:
+        node = graph.nodes.get(graph.node_id("source", key))
+        if not node or node.get("status") != "failed":
+            continue
+        label = str(node.get("label") or key)
+        add(
+            _SOURCE_RETRY.get(key, ""),
+            f"来源「{label}」失败，可再查这一来源。失败记录仍留在图上。",
+        )
+
+    herbs = _nodes_kind(graph, "herb")
+    compounds = _nodes_kind(graph, "compound")
+    genes = _nodes_kind(graph, "gene")
+    diseases = _nodes_kind(graph, "disease")
+    pathways = _nodes_kind(graph, "pathway")
+
+    if diseases and not _edges_between(graph, "disease", "pathway"):
+        if graph.step_status("tcm_kegg_disease_pathways") not in {"done", "skipped"}:
+            add("tcm_kegg_disease_pathways", "疾病节点还没有连到通路。")
+
+    if herbs and not compounds:
+        add("tcm_tcmsp_search", "图上已有药材，还没有成分。可查该药材的成分表。")
+
+    if (len(herbs) >= 2
+            and graph.step_status("tcm_formula_analysis") not in {"done", "skipped"}):
+        add(
+            "tcm_formula_analysis",
+            "至少两味药材已在图上，可计算成分集合重叠。集合重叠不是药效。",
+        )
+
+    if (diseases and (genes or compounds)
+            and not _nodes_kind(graph, "literature")
+            and graph.step_status("tcm_literature_mine") not in {"done", "skipped"}):
+        add("tcm_literature_mine", "疾病已与基因或成分同图，文献节点还没有。共现不是因果。")
+
+    if genes and compounds and not _edges_between(graph, "gene", "compound"):
+        add("tcm_symmap_lookup", "基因和成分都在图上，中间还没有边。可核对药材-成分-基因记录。")
+
+    if pathways and genes and not compounds and not herbs:
+        if (graph.step_status("tcm_network_analysis") not in {"done", "skipped"}
+                and (graph.n_genes >= 15 or len(genes) >= 15)):
+            add(
+                "tcm_network_analysis",
+                "通路和基因已连接，成分和药材还没有。基因不少于 15 时，可先做网络分析。",
+            )
+        else:
+            add(
+                "tcm_cross_database_screen",
+                "通路和基因已连接，成分还没有。可核对基因是否被多个库同时收录。收录计数不是疗效。",
+            )
+
+    if (_literature_names_pocket(graph)
+            and not _nodes_kind(graph, "model")
+            and graph.step_status("dock_vina_docking") not in {"done", "skipped"}):
+        add(
+            "dock_vina_docking",
+            "文献写明了口袋残基。输出仍是提议的对接模型，不是已记录结合证据。",
+        )
+
+    if not out and not graph.entity_nodes():
+        add("tcm_kegg_disease_pathways", "图上还没有实体节点。若从疾病入手，可先查通路。")
+        add(
+            "tcm_tcmsp_search",
+            "若从一味药材入手，可先查成分表。药材少于 2 个时不要做方剂集合重叠。",
+        )
+    return out
+
+
+def _reading_html(lines: Sequence[str]) -> str:
+    sections: List[Tuple[str, List[str]]] = []
+    title = ""
+    items: List[str] = []
+    for line in lines:
+        if line in _READING_CLASS:
+            if title:
+                sections.append((title, items))
+            title = line
+            items = []
+            continue
+        items.append(line[2:] if line.startswith("- ") else line)
+    if title:
+        sections.append((title, items))
+    parts = ['<section class="reading">']
+    for heading, rows in sections:
+        css = _READING_CLASS[heading]
+        parts.append(f'<h2 class="{css}">{html.escape(heading)}</h2>')
+        parts.append("<ul>")
+        for row in rows:
+            parts.append(f"<li>{html.escape(row)}</li>")
+        parts.append("</ul>")
+    parts.append("</section>")
+    return "\n".join(parts)
+
+
+def _wrap_text(text: str, limit_px: float, size: float) -> List[str]:
+    text = str(text or "")
+    if not text:
+        return [""]
+    lines: List[str] = []
+    current = ""
+    for ch in text:
+        trial = current + ch
+        if current and _text_px(trial, size) > limit_px:
+            lines.append(current)
+            current = ch
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _reading_svg(lines: Sequence[str], top: float, width: float) -> Tuple[List[str], float]:
+    size = 12.0
+    inner = max(240.0, width - 56.0)
+    wrapped: List[str] = []
+    classes: List[str] = []
+    for line in lines:
+        pieces = _wrap_text(line, inner, size)
+        css = _READING_CLASS.get(line, "reading-line")
+        for index, piece in enumerate(pieces):
+            wrapped.append(piece)
+            classes.append(css if index == 0 else "reading-line")
+    line_h = 16.0
+    pad = 14.0
+    height = pad * 2 + line_h * max(1, len(wrapped))
+    parts = [
+        '<g class="reading-panel">',
+        (
+            f'<rect x="16" y="{_f(top)}" width="{_f(max(32.0, width - 32))}" '
+            f'height="{_f(height)}" rx="6" fill="{CARD_PAPER}" stroke="{WOOD}" '
+            f'stroke-width="1.25"/>'
+        ),
+    ]
+    y = top + pad + 12
+    for css, line in zip(classes, wrapped):
+        weight = ' font-weight="600"' if css != "reading-line" else ""
+        parts.append(
+            f'<text class="{css}" x="28" y="{_f(y)}" font-size="12" fill="{INK}"{weight}>'
+            f"{html.escape(line)}</text>"
+        )
+        y += line_h
+    parts.append("</g>")
+    return parts, top + height
+
+
 def cross_kind_arcs(nodes: Sequence[dict], edges: Sequence[dict]) -> List[dict]:
     """One directed arc per source kind, destination kind, and relation."""
     by_id = {node["id"]: node for node in nodes if node.get("kind") != "step"}
@@ -916,7 +1326,7 @@ def _defs_block(extra: str = "") -> str:
 def _nebula_defs(kinds: Sequence[str]) -> str:
     parts = []
     for kind in kinds:
-        core, mid = _KIND_NEBULA.get(kind, ("#d5dde6", "#7f93a8"))
+        core, mid = _KIND_NEBULA.get(kind, (SHELL_AMBER, SHELL_AMBER_DEEP))
         token = _kind_token(kind)
         parts.append(
             f'<radialGradient id="nebula-{token}" cx="34%" cy="32%" r="68%">'
@@ -931,8 +1341,8 @@ def _nebula_defs(kinds: Sequence[str]) -> str:
 def _svg_header(subtitle: str) -> List[str]:
     parts = [
         f'<rect width="100%" height="100%" fill="{_BG}"/>',
-        '<text x="16" y="22" font-size="15" fill="#e6edf3">分析网络拓扑</text>',
-        f'<text x="16" y="40" font-size="12" fill="#9aa6b2">{html.escape(subtitle)}</text>',
+        f'<text x="16" y="22" font-size="15" fill="{INK}">分析网络拓扑</text>',
+        f'<text x="16" y="40" font-size="12" fill="{WOOD_DARK}">{html.escape(subtitle)}</text>',
     ]
     x = 16
     for status in ("ready", "pending", "done", "failed", "skipped", "deferred"):
@@ -941,7 +1351,7 @@ def _svg_header(subtitle: str) -> List[str]:
             f'<rect x="{x}" y="50" width="10" height="10" rx="2" fill="{color}"/>'
         )
         parts.append(
-            f'<text x="{x + 14}" y="60" font-size="11" fill="#b7c2cc">{status}</text>'
+            f'<text x="{x + 14}" y="60" font-size="11" fill="{WOOD_DARK}">{status}</text>'
         )
         x += 112
     return parts
@@ -969,7 +1379,7 @@ def _fit(text: str, limit_px: float, size: float) -> str:
 def _rounded_node(node: dict, x: float, y: float, w: float, h: float) -> str:
     status = node.get("status") if node.get("status") in _STATUS_COLOR else "ready"
     color = _STATUS_COLOR[status]
-    fill = _KIND_FILL.get(node.get("kind"), "#1c2228")
+    fill = _KIND_FILL.get(node.get("kind"), CARD_PAPER)
     kind = _kind_token(str(node.get("kind") or ""))
     inner = max(24.0, w - 28.0)
     name = html.escape(_fit(node.get("label") or node.get("key") or "", inner, 12))
@@ -979,13 +1389,13 @@ def _rounded_node(node: dict, x: float, y: float, w: float, h: float) -> str:
         f'<g class="node status-{status} kind-{kind}">'
         f"<title>{tip}</title>"
         f'<rect class="card" x="{_f(x)}" y="{_f(y)}" width="{_f(w)}" height="{_f(h)}" '
-        f'rx="6" fill="{fill}" stroke="{color}" stroke-width="1.25"/>'
+        f'rx="6" fill="{fill}" stroke="{WOOD}" stroke-width="1.25"/>'
         f'<rect class="status-bar" x="{_f(x + 4)}" y="{_f(y + 7)}" width="3" '
         f'height="{_f(h - 14)}" rx="1.5" fill="{color}"/>'
         f'<text class="name" x="{_f(x + 14)}" y="{_f(y + 17)}" font-size="12" '
-        f'fill="#e6edf3">{name}</text>'
+        f'fill="{INK}">{name}</text>'
         f'<text class="detail" x="{_f(x + 14)}" y="{_f(y + 32)}" font-size="10" '
-        f'fill="#93a0ad">{detail}</text>'
+        f'fill="{WOOD_DARK}">{detail}</text>'
         f"</g>"
     )
 
@@ -1073,7 +1483,7 @@ def _column_captions(nodes: Sequence[dict], positions: Dict[str, tuple]) -> List
     for x, kind in sorted(kind_at_x.items()):
         parts.append(
             f'<text class="column-label" x="{_f(x)}" y="76" text-anchor="middle" '
-            f'font-size="11" fill="#7f8b96">{html.escape(_kind_name(kind))}</text>'
+            f'font-size="11" fill="{WOOD}">{html.escape(_kind_name(kind))}</text>'
         )
     return parts
 
@@ -1101,11 +1511,11 @@ def _card_edges(edges: Sequence[dict], positions: Dict[str, tuple]) -> List[str]
 
 def _step_block(steps: Sequence[dict], top: float, width: float) -> Tuple[List[str], float]:
     parts = [
-        f'<text x="16" y="{_f(top)}" font-size="13" fill="#d5dde4">执行状态</text>'
+        f'<text x="16" y="{_f(top)}" font-size="13" fill="{INK}">执行状态</text>'
     ]
     if not steps:
         parts.append(
-            f'<text x="16" y="{_f(top + 20)}" font-size="11" fill="#8b939c">尚无步骤</text>'
+            f'<text x="16" y="{_f(top + 20)}" font-size="11" fill="{WOOD}">尚无步骤</text>'
         )
         return parts, top + 36
     chip_w, chip_h, gap_x, gap_y = 232.0, 42.0, 8.0, 8.0
@@ -1126,11 +1536,11 @@ def _svg_cards(graph: "AnalysisGraph") -> str:
     frame = card_frame(entities)
     parts = [_defs_block()]
     parts.extend(_svg_header(
-        "当前是卡片。圆角矩形里是名称和详情，箭头是检索方向。这不是疗效结论。"
+        "当前是卡片。浅暖纸底、木色边框。圆角矩形里是名称和详情，箭头是检索方向。这不是疗效结论。"
     ))
     if not entities:
         parts.append(
-            '<text x="16" y="108" font-size="12" fill="#8b939c">分析网络尚未写入节点</text>'
+            f'<text x="16" y="108" font-size="12" fill="{WOOD}">分析网络尚未写入节点</text>'
         )
     else:
         parts.extend(_column_captions(entities, frame["positions"]))
@@ -1148,7 +1558,9 @@ def _svg_cards(graph: "AnalysisGraph") -> str:
         frame["bottom"] + 28, frame["width"],
     )
     parts.extend(steps)
-    return _svg_document("card", frame["width"], step_bottom + 14, parts)
+    reading, bottom = _reading_svg(graph.reading_lines(), step_bottom + 10, frame["width"])
+    parts.extend(reading)
+    return _svg_document("card", frame["width"], bottom + 16, parts)
 
 
 def _rim(cx: float, cy: float, radius: float, tx: float, ty: float, gap: float = 2.0):
@@ -1176,9 +1588,9 @@ def _arc_label(x: float, y: float, label: str) -> str:
     return (
         '<g class="arc-label">'
         f'<rect x="{_f(x - width / 2)}" y="{_f(y - 11)}" width="{_f(width)}" height="16" '
-        f'rx="3" fill="{_BG}" fill-opacity="0.88"/>'
+        f'rx="3" fill="{CARD_PAPER}" fill-opacity="0.92" stroke="{WOOD}" stroke-width="0.6"/>'
         f'<text x="{_f(x)}" y="{_f(y)}" text-anchor="middle" font-size="11" '
-        f'fill="#d5dde4">{text}</text>'
+        f'fill="{INK}">{text}</text>'
         "</g>"
     )
 
@@ -1221,12 +1633,12 @@ def _sphere_group(kind: str, scene: dict) -> str:
         f'data-count="{len(members)}">',
         (
             f'<circle class="shell" cx="{_f(cx)}" cy="{_f(cy)}" r="{_f(radius)}" '
-            f'fill="url(#nebula-{token})" stroke="#9aabba" stroke-opacity="0.45" '
+            f'fill="url(#nebula-{token})" stroke="{WOOD}" stroke-opacity="0.55" '
             f'stroke-width="1.15"/>'
         ),
         (
             f'<ellipse cx="{_f(cx)}" cy="{_f(cy)}" rx="{_f(radius)}" ry="{_f(radius * 0.18)}" '
-            f'fill="none" stroke="#b7c3ce" stroke-opacity="0.28"/>'
+            f'fill="none" stroke="{SHELL_AMBER_DEEP}" stroke-opacity="0.45"/>'
         ),
     ]
     ranked = []
@@ -1247,7 +1659,7 @@ def _sphere_group(kind: str, scene: dict) -> str:
     caption = html.escape(f"{_kind_name(kind)} · {len(members)}")
     bits.append(
         f'<text class="sphere-caption" x="{_f(cx)}" y="{_f(cy + radius + 18)}" '
-        f'text-anchor="middle" font-size="12" fill="#c5ced6">{caption}</text>'
+        f'text-anchor="middle" font-size="12" fill="{INK}">{caption}</text>'
     )
     bits.append("</g>")
     return "\n".join(bits)
@@ -1258,7 +1670,7 @@ def _svg_sphere(graph: "AnalysisGraph") -> str:
     scene = sphere_scene(entities)
     parts = [_defs_block(_nebula_defs(scene["order"]))]
     parts.extend(_svg_header(
-        "当前是球面。实体节点满 300 后按类别分球，弧上是关系和边数。这不是疗效结论。"
+        "当前是球面。浅暖纸底。实体节点满 300 后按类别分球，球壳是暖琥珀，弧上是关系和边数。这不是疗效结论。"
     ))
     for kind in scene["order"]:
         parts.append(_sphere_group(kind, scene))
@@ -1268,4 +1680,6 @@ def _svg_sphere(graph: "AnalysisGraph") -> str:
         scene["bottom"] + 8, scene["width"],
     )
     parts.extend(steps)
-    return _svg_document("sphere", scene["width"], step_bottom + 14, parts)
+    reading, bottom = _reading_svg(graph.reading_lines(), step_bottom + 10, scene["width"])
+    parts.extend(reading)
+    return _svg_document("sphere", scene["width"], bottom + 16, parts)
